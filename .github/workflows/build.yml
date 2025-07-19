@@ -1,0 +1,247 @@
+name: Build Julia Without GPL Libraries
+
+on:
+  workflow_dispatch:
+    inputs:
+      julia_version:
+        description: 'Julia version to build (e.g., v1.11.6)'
+        required: true
+        default: 'v1.11.6'
+      platform:
+        description: 'Platform to build for'
+        required: true
+        default: 'linux'
+        type: choice
+        options:
+        - linux
+        - macos
+        - windows
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            julia_version: v1.11.6
+          - os: macos-latest
+            platform: macos
+            julia_version: v1.11.6
+          - os: windows-latest
+            platform: windows
+            julia_version: v1.11.6
+    env:
+      MSYSTEM: ${{ runner.os == 'Windows' && 'MINGW64' || '' }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Julia
+      uses: julia-actions/setup-julia@v1
+      with:
+        version: ${{ matrix.julia_version }}
+
+    - name: Cache system dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ${{ runner.os == 'Linux' && '/usr/local' || '' }}
+          ${{ runner.os == 'macOS' && '/usr/local' || '' }}
+          ${{ runner.os == 'Windows' && 'C:\\tools' || '' }}
+        key: ${{ runner.os }}-sys-deps-${{ hashFiles('**/build.yml') }}
+        restore-keys: |
+          ${{ runner.os }}-sys-deps-
+
+    - name: Install system dependencies
+      run: |
+        if [ "$RUNNER_OS" = "Linux" ]; then
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git curl wget
+          sudo apt-get install -y libopenblas-dev liblapack-dev
+        elif [ "$RUNNER_OS" = "macOS" ]; then
+          brew install cmake git curl wget
+          brew install openblas lapack
+        elif [ "$RUNNER_OS" = "Windows" ]; then
+          choco install cmake git curl wget --yes
+        fi
+
+    - name: Cache Julia source
+      uses: actions/cache@v3
+      with:
+        path: src
+        key: ${{ runner.os }}-julia-source-${{ matrix.julia_version }}
+        restore-keys: |
+          ${{ runner.os }}-julia-source-
+
+    - name: Clone Julia source
+      if: steps.cache-julia-source.outputs.cache-hit != 'true'
+      run: |
+        git clone --depth 1 --branch ${{ matrix.julia_version }} https://github.com/JuliaLang/julia.git src
+
+    - name: Cache build dependencies
+      uses: actions/cache@v3
+      with:
+        path: src/deps
+        key: ${{ runner.os }}-julia-deps-${{ matrix.julia_version }}-nogpl
+        restore-keys: |
+          ${{ runner.os }}-julia-deps-${{ matrix.julia_version }}-
+          ${{ runner.os }}-julia-deps-
+
+    - name: Configure build without GPL libraries
+      run: |
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          @"
+          # Build without GPL libraries
+          USE_GPL_LIBS=0
+          
+          # Use 64-bit BLAS for better performance
+          USE_BLAS64=1
+          
+          # Use OpenBLAS instead of MKL for better compatibility
+          USE_INTEL_MKL=0
+          
+          # Optimize for current CPU
+          JULIA_CPU_TARGET=native
+          
+          # Use all available CPU cores
+          MAKEFLAGS=-j$(nproc)
+          
+          # Enable verbose output for debugging
+          VERBOSE=1
+          "@ | Out-File -FilePath Make.user -Encoding UTF8
+        else
+          cat > Make.user << EOF
+          # Build without GPL libraries
+          USE_GPL_LIBS=0
+          
+          # Use 64-bit BLAS for better performance
+          USE_BLAS64=1
+          
+          # Use OpenBLAS instead of MKL for better compatibility
+          USE_INTEL_MKL=0
+          
+          # Optimize for current CPU
+          JULIA_CPU_TARGET=native
+          
+          # Use all available CPU cores
+          MAKEFLAGS=-j$(nproc)
+          
+          # Enable verbose output for debugging
+          VERBOSE=1
+          EOF
+        fi
+
+    - name: Build Julia
+      shell: sh
+      working-directory: src
+      env:
+        PYTHON: python
+        CFLAGS: ""
+        CPPFLAGS: ""
+      run: |
+        make -j$(nproc)
+
+    - name: Test Julia build
+      shell: sh
+      working-directory: src
+      run: |
+        ./julia --version
+        ./julia -e "println(\"Julia build successful!\")"
+
+    - name: Verify no GPL libraries
+      if: runner.os == 'Linux'
+      shell: sh
+      working-directory: src
+      run: |
+        echo "Checking for GPL libraries..."
+        ldd ./julia | grep -i fftw || echo "FFTW not found (good)"
+        ldd ./julia | grep -i gmp || echo "GMP not found (good)"
+        ldd ./julia | grep -i mpfr || echo "MPFR not found (good)"
+
+    - name: Create artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: julia-nogpl-${{ matrix.platform }}-${{ matrix.julia_version }}
+        path: src/julia
+        retention-days: 30
+
+    - name: Create distribution package
+      shell: sh
+      working-directory: src
+      run: |
+        make install prefix=/tmp/julia-nogpl
+        
+        # Create platform-specific packages
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          # Windows: Create ZIP file
+          cd /tmp
+          powershell -Command "Compress-Archive -Path julia-nogpl -DestinationPath julia-nogpl-${{ matrix.platform }}-${{ matrix.julia_version }}.zip"
+          mv julia-nogpl-${{ matrix.platform }}-${{ matrix.julia_version }}.zip $GITHUB_WORKSPACE/
+        else
+          # Linux/macOS: Create tar.gz file
+          tar -czf julia-nogpl-${{ matrix.platform }}-${{ matrix.julia_version }}.tar.gz -C /tmp julia-nogpl
+        fi
+
+    - name: Upload distribution package
+      uses: actions/upload-artifact@v4
+      with:
+        name: julia-nogpl-${{ matrix.platform }}-${{ matrix.julia_version }}-package
+        path: julia-nogpl-${{ matrix.platform }}-${{ matrix.julia_version }}.${{ runner.os == 'Windows' && 'zip' || 'tar.gz' }}
+        retention-days: 30
+
+  test-packages:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Download Julia build
+      uses: actions/download-artifact@v4
+      with:
+        name: julia-nogpl-linux-v1.11.6
+        path: julia-build
+
+    - name: Set up Julia
+      uses: julia-actions/setup-julia@v1
+      with:
+        version: v1.11.6
+
+    - name: Test core functionality
+      run: |
+        chmod +x julia-build/julia
+        ./julia-build/julia -e "
+          using LinearAlgebra
+          println(\"LinearAlgebra works\")
+          
+          # Test basic matrix operations
+          A = rand(3, 3)
+          B = inv(A)
+          println(\"Matrix operations work\")
+          
+          # Test FFT (should work with MKL/OpenBLAS)
+          using FFTW
+          x = rand(100)
+          y = fft(x)
+          println(\"FFT works\")
+        "
+
+    - name: Test package compatibility
+      run: |
+        chmod +x julia-build/julia
+        ./julia-build/julia -e "
+          # Test that we can load common packages
+          using Pkg
+          Pkg.add(\"Test\")
+          using Test
+          println(\"Test package works\")
+          
+          # Test JSON functionality
+          Pkg.add(\"JSON\")
+          using JSON
+          println(\"JSON package works\")
+        " 

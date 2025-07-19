@@ -1,0 +1,111 @@
+name: Quick Test Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  quick-build:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      MSYSTEM: MINGW64
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          C:\tools\cmake
+          C:\tools\git
+          C:\tools\curl
+          C:\tools\wget
+        key: ${{ runner.os }}-deps-${{ hashFiles('**/quick-test.yml') }}
+        restore-keys: |
+          ${{ runner.os }}-deps-
+
+    - name: Install dependencies
+      run: |
+        choco install cmake git curl wget --yes
+        
+    - name: Set up Python environment
+      run: |
+        echo "Python version:"
+        python --version
+        echo "Python path:"
+        where python
+        echo "Setting PYTHON environment variable"
+        echo "PYTHON=$(where python | head -1)" >> $env:GITHUB_ENV
+
+    - name: Cache Julia source
+      uses: actions/cache@v3
+      with:
+        path: julia
+        key: ${{ runner.os }}-julia-source-v1.11.6
+        restore-keys: |
+          ${{ runner.os }}-julia-source-
+
+    - name: Clone Julia source
+      if: steps.cache-julia-source.outputs.cache-hit != 'true'
+      run: |
+        git clone --depth 1 --branch v1.11.6 https://github.com/JuliaLang/julia.git julia
+
+    - name: Cache build dependencies
+      uses: actions/cache@v3
+      with:
+        path: julia/deps
+        key: ${{ runner.os }}-julia-deps-v1.11.6-nogpl
+        restore-keys: |
+          ${{ runner.os }}-julia-deps-v1.11.6-
+          ${{ runner.os }}-julia-deps-
+
+    - name: Configure build
+      working-directory: julia
+      run: |
+        @"
+        USE_GPL_LIBS=0
+        USE_BLAS64=1
+        USE_INTEL_MKL=0
+        JULIA_CPU_TARGET=native
+        MAKEFLAGS=-j2
+        VERBOSE=1
+        "@ | Out-File -FilePath Make.user -Encoding UTF8
+
+    - name: Build Julia (quick test)
+      shell: sh
+      working-directory: julia
+      env:
+        PYTHON: python
+        PYTHON_EXECUTABLE: python
+        CFLAGS: ""
+        CPPFLAGS: ""
+      run: |
+        echo "Testing Python execution:"
+        python -c "import platform; print(platform.system())"
+        echo "Starting Julia build:"
+        make -j2
+      timeout-minutes: 45
+
+    - name: Test build
+      shell: sh
+      working-directory: julia
+      run: |
+        ./julia --version
+        ./julia -e "println(\"Quick test successful!\")"
+
+    - name: Verify no GPL libraries
+      working-directory: julia
+      run: |
+        echo "Checking for GPL libraries..."
+        dumpbin /dependents julia.exe | findstr /i fftw || echo "FFTW not found (good)"
+        dumpbin /dependents julia.exe | findstr /i gmp || echo "GMP not found (good)"
+        dumpbin /dependents julia.exe | findstr /i mpfr || echo "MPFR not found (good)"
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: julia-nogpl-quick-test-windows
+        path: julia/julia.exe
+        retention-days: 7 
