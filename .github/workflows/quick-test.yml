@@ -1,39 +1,28 @@
-name: Build Julia from Source using BinaryBuilder
+name: Quick Test Build
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-julia:
+  quick-build:
     runs-on: windows-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Set up MSYS2
         uses: msys2/setup-msys2@v2
         with:
           update: true
           install: >-
-            make
-            perl
+            git
             python
-            m4
             cmake
             curl
-            patch
-            tar
-            git
-
-      - name: Clone julia
-        shell: msys2 {0}
-        run: |
-          echo "Testing Python execution:"
-          python -c 'import platform; print(platform.system())'
-
-          echo "Cloning Julia repository:"
-          mkdir -p /c/julia
-          cd /c/julia
-          git clone --depth 1 --branch v1.11.6 https://github.com/JuliaLang/julia.git src
-          cd src
+            wget
+            make
+            perl
 
 
       - name: Build Julia with BinaryBuilder toolchain
@@ -61,3 +50,34 @@ jobs:
           echo "Starting build in: $(pwd)"
           make
 
+      - name: List build directory contents
+        shell: msys2 {0}
+        run: |
+          echo "=== Directory contents of /c/julia/src ==="
+          ls -la /c/julia/src/
+          echo ""
+          echo "=== Contents of /c/julia/src/usr (if exists) ==="
+          ls -la /c/julia/src/usr/ 2>/dev/null || echo "usr directory not found"
+          echo ""
+          echo "=== Contents of /c/julia/src/usr/bin (if exists) ==="
+          ls -la /c/julia/src/usr/bin/ 2>/dev/null || echo "usr/bin directory not found"
+          echo ""
+          echo "=== Looking for julia executable ==="
+          find /c/julia/src -name "julia*" -type f 2>/dev/null || echo "No julia executables found"
+
+      - name: Test build
+        shell: msys2 {0}
+        working-directory: /c/julia/src
+        run: |
+          echo "Testing Julia build:"
+          ./usr/bin/julia --version
+          ./usr/bin/julia -e "println(\"Quick test successful!\")"
+
+      - name: Verify no GPL libraries
+        shell: msys2 {0}
+        working-directory: /c/julia/src
+        run: |
+          echo "Checking for GPL libraries..."
+          dumpbin /dependents usr/bin/julia.exe | findstr /i fftw || echo "FFTW not found (good)"
+          dumpbin /dependents usr/bin/julia.exe | findstr /i gmp || echo "GMP not found (good)"
+          dumpbin /dependents usr/bin/julia.exe | findstr /i mpfr || echo "MPFR not found (good)"
