@@ -35,14 +35,29 @@ jobs:
           git clone --depth 1 --branch v1.11.6 https://github.com/JuliaLang/julia.git src
           cd src
 
+
       - name: Build Julia with BinaryBuilder toolchain
         shell: msys2 {0}
-        working-directory: /c/julia/src
         env:
-          USE_BINARYBUILDER: 1
+          CC: /mingw64/bin/clang
+          CXX: /mingw64/bin/clang++
+          FC: /mingw64/bin/gfortran
+          USE_GPL_LIBS: 0
+          USE_BLAS64: 1
+          USE_INTEL_MKL: 0
+          JULIA_CPU_TARGET: "native"
           MAKEFLAGS: -j2
+          USE_BINARYBUILDER: 1
         run: |
-          echo "🏗️ Starting Julia build in $PWD"
-          make
+          echo "Testing Python execution:"
+          python -c 'import platform; print(platform.system())'
 
+          echo "Cloning Julia repository:"
+          mkdir -p /c/julia
+          cd /c/julia
+          git clone --depth 1 --branch v1.11.6 https://github.com/JuliaLang/julia.git src
+          cd src
+
+          echo "Starting build in: $(pwd)"
+          make
 
