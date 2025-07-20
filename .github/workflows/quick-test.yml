@@ -40,8 +40,6 @@ jobs:
           CC: /mingw64/bin/clang
           CXX: /mingw64/bin/clang++
           FC: /mingw64/bin/gfortran
-          CFLAGS: -std=gnu11
-          CXXFLAGS: -std=gnu++17
           USE_GPL_LIBS: 0
           USE_BLAS64: 1
           USE_INTEL_MKL: 0
@@ -57,6 +55,35 @@ jobs:
           cd /c/julia
           git clone --depth 1 --branch v1.11.6 https://github.com/JuliaLang/julia.git src
           cd src
+
+          echo "Creating Make.user with proper compiler settings..."
+          cat > Make.user << EOF
+          # Use Clang as recommended in official documentation
+          CC=/mingw64/bin/clang
+          CXX=/mingw64/bin/clang++
+          
+          # Build without GPL libraries
+          USE_GPL_LIBS=0
+          
+          # Use 64-bit BLAS for better performance
+          USE_BLAS64=1
+          
+          # Use OpenBLAS instead of MKL for better compatibility
+          USE_INTEL_MKL=0
+          
+          # Optimize for current CPU
+          JULIA_CPU_TARGET=native
+          
+          # Use BinaryBuilder for dependencies (recommended for Windows)
+          USE_BINARYBUILDER=1
+          
+          # Use GNU C11 standard (same as official Julia build)
+          JCFLAGS += -std=gnu11
+          JCXXFLAGS += -std=gnu++17
+          EOF
+          
+          echo "Make.user contents:"
+          cat Make.user
 
           echo "Starting build in: $(pwd)"
           make
