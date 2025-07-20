@@ -16,13 +16,16 @@ jobs:
         with:
           update: true
           install: >-
-            git
+            diffutils 
+            git 
+            m4 
+            make 
+            patch 
+            tar 
+            p7zip 
+            curl 
             python
-            cmake
-            curl
-            wget
-            make
-            perl
+            mingw-w64-x86_64-cmake
             mingw-w64-x86_64-gcc 
             mingw-w64-x86_64-clang
 
