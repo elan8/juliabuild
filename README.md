@@ -135,18 +135,25 @@ This repository includes several GitHub Actions workflows for building Julia wit
 
 ### Available Workflows
 
-1. **`build.yml`** - Basic build workflow
+1. **`build-windows-fixed.yml`** - **NEW: Fixed Windows build workflow**
+   - Follows official Julia Windows build documentation
+   - Uses proper MSYS2/MinGW toolchain setup
+   - Includes BinaryBuilder for better dependency management
+   - Comprehensive testing and verification
+   - **Recommended for Windows builds**
+
+2. **`build.yml`** - Basic build workflow
    - Builds Julia v1.11.6 for Linux, macOS, and Windows
    - Includes basic testing and verification
    - Creates distribution packages (tar.gz for Linux/macOS, zip for Windows)
 
-2. **`build-advanced.yml`** - Advanced build workflow
+3. **`build-advanced.yml`** - Advanced build workflow
    - Supports multiple Julia versions (v1.11.6, v1.10.0, v1.9.4)
    - Includes caching for faster builds
    - Comprehensive testing and package compatibility checks
    - Automatic release creation with platform-specific packages
 
-3. **`quick-test.yml`** - Quick test workflow
+4. **`quick-test.yml`** - Quick test workflow
    - Fast build for development and testing
    - Windows only, reduced parallel jobs
    - ~45 minute build time
