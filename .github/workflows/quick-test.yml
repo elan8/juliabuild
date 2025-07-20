@@ -33,8 +33,8 @@ jobs:
           echo "Cloning Julia repository:"
           mkdir -p /c/julia
           cd /c/julia
-          git clone https://github.com/JuliaLang/julia.git .
-          git checkout v1.11.6
+          git clone --depth 1 --branch v1.11.6 https://github.com/JuliaLang/julia.git src
+          cd src
 
           USE_GPL_LIBS=0
           USE_BLAS64=1
