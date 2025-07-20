@@ -1,4 +1,4 @@
-name: Build Julia on Windows (Simple)
+name: Build Julia on Windows
 
 on:
   workflow_dispatch:
@@ -91,13 +91,19 @@ jobs:
           # Enable verbose output for debugging
           VERBOSE=1
           
+          # Use BinaryBuilder for dependencies (recommended for Windows)
+          USE_BINARYBUILDER=1
+          
+          # Use Clang as recommended in official documentation
+          # This is required for compatibility with BinaryBuilder LLVM
+          CC=/mingw64/bin/clang
+          CXX=/mingw64/bin/clang++
+          FC=/mingw64/bin/gfortran
+          
           # Additional optimization flags
           CFLAGS=-O3
           CXXFLAGS=-O3
           LDFLAGS=-O3
-          
-          # Use BinaryBuilder for dependencies (recommended for Windows)
-          USE_BINARYBUILDER=1
           EOF
           
           echo "Make.user contents:"
@@ -107,10 +113,21 @@ jobs:
         shell: msys2 {0}
         working-directory: julia-source
         timeout-minutes: 180
+        env:
+          # Set environment variables for better compatibility
+          MSYSTEM: MINGW64
+          MSYS2_ARG_CONV_EXCL: "*"
+          PYTHON: python
         run: |
           echo "🏗️ Starting Julia build in $PWD"
           echo "Build configuration:"
           cat Make.user
+          
+          echo "Environment variables:"
+          echo "CC: $CC"
+          echo "CXX: $CXX"
+          echo "FC: $FC"
+          echo "MSYSTEM: $MSYSTEM"
           
           echo "Starting make..."
           make -j2

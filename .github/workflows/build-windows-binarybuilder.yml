@@ -1,4 +1,4 @@
-name: Build Julia on Windows (Fixed)
+name: Build Julia on Windows (BinaryBuilder + Clang)
 
 on:
   workflow_dispatch:
@@ -46,25 +46,23 @@ jobs:
         shell: msys2 {0}
         run: |
           echo "Cloning Julia repository..."
-          mkdir -p /c/julia-build
-          cd /c/julia-build
           git clone --depth 1 --branch ${{ github.event.inputs.julia_version || 'v1.11.6' }} https://github.com/JuliaLang/julia.git julia-source
           cd julia-source
-          pwd
+          echo "Current directory: $(pwd)"
           ls -la
 
       - name: Cache build dependencies
         uses: actions/cache@v3
         with:
-          path: /c/julia-build/julia-source/deps
-          key: ${{ runner.os }}-julia-deps-${{ github.event.inputs.julia_version || 'v1.11.6' }}-nogpl
+          path: julia-source/deps
+          key: ${{ runner.os }}-julia-deps-${{ github.event.inputs.julia_version || 'v1.11.6' }}-nogpl-binarybuilder
           restore-keys: |
             ${{ runner.os }}-julia-deps-${{ github.event.inputs.julia_version || 'v1.11.6' }}-
             ${{ runner.os }}-julia-deps-
 
       - name: Configure build without GPL libraries
         shell: msys2 {0}
-        working-directory: /c/julia-build/julia-source
+        working-directory: julia-source
         run: |
           echo "Configuring build without GPL libraries..."
           echo "Current directory: $(pwd)"
@@ -93,13 +91,19 @@ jobs:
           # Enable verbose output for debugging
           VERBOSE=1
           
+          # Use BinaryBuilder for dependencies (recommended for Windows)
+          USE_BINARYBUILDER=1
+          
+          # Use Clang as recommended in official documentation
+          # This is required for compatibility with BinaryBuilder LLVM
+          CC=/mingw64/bin/clang
+          CXX=/mingw64/bin/clang++
+          FC=/mingw64/bin/gfortran
+          
           # Additional optimization flags
           CFLAGS=-O3
           CXXFLAGS=-O3
           LDFLAGS=-O3
-          
-          # Use BinaryBuilder for dependencies (recommended for Windows)
-          USE_BINARYBUILDER=1
           EOF
           
           echo "Make.user contents:"
@@ -107,12 +111,23 @@ jobs:
 
       - name: Build Julia
         shell: msys2 {0}
-        working-directory: /c/julia-build/julia-source
+        working-directory: julia-source
         timeout-minutes: 180
+        env:
+          # Set environment variables for better compatibility
+          MSYSTEM: MINGW64
+          MSYS2_ARG_CONV_EXCL: "*"
+          PYTHON: python
         run: |
           echo "🏗️ Starting Julia build in $PWD"
           echo "Build configuration:"
           cat Make.user
+          
+          echo "Environment variables:"
+          echo "CC: $CC"
+          echo "CXX: $CXX"
+          echo "FC: $FC"
+          echo "MSYSTEM: $MSYSTEM"
           
           echo "Starting make..."
           make -j2
@@ -121,7 +136,7 @@ jobs:
 
       - name: Test Julia build
         shell: msys2 {0}
-        working-directory: /c/julia-build/julia-source
+        working-directory: julia-source
         run: |
           echo "Testing Julia build..."
           ./julia --version
@@ -146,7 +161,7 @@ jobs:
 
       - name: Verify no GPL libraries
         shell: msys2 {0}
-        working-directory: /c/julia-build/julia-source
+        working-directory: julia-source
         run: |
           echo "Checking for GPL libraries..."
           # Use objdump to check dependencies (MSYS2 equivalent of ldd)
@@ -156,7 +171,7 @@ jobs:
 
       - name: Create distribution package
         shell: msys2 {0}
-        working-directory: /c/julia-build/julia-source
+        working-directory: julia-source
         run: |
           echo "Creating distribution package..."
           
@@ -168,20 +183,20 @@ jobs:
           zip -r julia-nogpl-windows-${{ github.event.inputs.julia_version || 'v1.11.6' }}.zip julia-nogpl/
           
           # Move to workspace
-          mv julia-nogpl-windows-${{ github.event.inputs.julia_version || 'v1.11.6' }}.zip /c/julia-build/
+          mv julia-nogpl-windows-${{ github.event.inputs.julia_version || 'v1.11.6' }}.zip $GITHUB_WORKSPACE/
 
       - name: Upload Julia executable
         uses: actions/upload-artifact@v4
         with:
           name: julia-nogpl-windows-${{ github.event.inputs.julia_version || 'v1.11.6' }}
-          path: /c/julia-build/julia-source/julia.exe
+          path: julia-source/julia.exe
           retention-days: 30
 
       - name: Upload distribution package
         uses: actions/upload-artifact@v4
         with:
           name: julia-nogpl-windows-${{ github.event.inputs.julia_version || 'v1.11.6' }}-package
-          path: /c/julia-build/julia-nogpl-windows-${{ github.event.inputs.julia_version || 'v1.11.6' }}.zip
+          path: julia-nogpl-windows-${{ github.event.inputs.julia_version || 'v1.11.6' }}.zip
           retention-days: 30
 
   test-packages:

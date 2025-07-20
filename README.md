@@ -135,12 +135,13 @@ This repository includes several GitHub Actions workflows for building Julia wit
 
 ### Available Workflows
 
-1. **`build-windows-fixed.yml`** - **NEW: Fixed Windows build workflow**
-   - Follows official Julia Windows build documentation
-   - Uses proper MSYS2/MinGW toolchain setup
-   - Includes BinaryBuilder for better dependency management
+1. **`build-windows.yml`** - **RECOMMENDED: Windows build workflow**
+   - Follows official Julia Windows build documentation exactly
+   - Uses BinaryBuilder for dependencies (recommended approach)
+   - Uses Clang compiler (required for BinaryBuilder compatibility)
+   - Builds Julia without GPL libraries
    - Comprehensive testing and verification
-   - **Recommended for Windows builds**
+   - **This is the workflow you should use for Windows builds**
 
 2. **`build.yml`** - Basic build workflow
    - Builds Julia v1.11.6 for Linux, macOS, and Windows
