@@ -16,6 +16,7 @@ jobs:
         with:
           update: true
           install: >-
+            base-devel
             diffutils 
             git 
             m4 
@@ -25,6 +26,9 @@ jobs:
             p7zip 
             curl 
             python
+            wget
+            cmake
+            mingw-w64-x86_64-toolchain
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-gcc 
             mingw-w64-x86_64-clang
