@@ -59,8 +59,8 @@ jobs:
           echo "Creating Make.user with proper compiler settings..."
           cat > Make.user << EOF
           # Use Clang as recommended in official documentation
-          CC=/mingw64/bin/clang
-          CXX=/mingw64/bin/clang++
+          override CC=/mingw64/bin/clang
+          override CXX=/mingw64/bin/clang++
           
           # Build without GPL libraries
           USE_GPL_LIBS=0
