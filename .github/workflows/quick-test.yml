@@ -8,43 +8,45 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - name: Checkout Julia source
-      uses: actions/checkout@v4
-      with:
-        submodules: true
+      - name: Set up MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >-
+            make
+            perl
+            python
+            m4
+            cmake
+            curl
+            patch
+            tar
+            git
 
-    - name: Set up MSYS2
-      uses: msys2/setup-msys2@v2
-      with:
-        update: true
-        install: >-
+      - name: Clone julia
+        shell: msys2 {0}
+        run: |
+          echo "Testing Python execution:"
+          python -c 'import platform; print(platform.system())'
+
+          echo "Cloning Julia repository:"
+          mkdir -p /c/julia
+          cd /c/julia
+          git clone --depth 1 --branch v1.11.6 https://github.com/JuliaLang/julia.git src
+          cd src
+
+      - name: Build Julia with BinaryBuilder toolchain
+        shell: msys2 {0}
+        working-directory: /c/julia/src
+        env:
+          USE_BINARYBUILDER: 1
+          MAKEFLAGS: -j2
+        run: |
+          echo "🏗️ Starting Julia build in $PWD"
           make
-          perl
-          python
-          m4
-          cmake
-          curl
-          patch
-          tar
-          git
 
-    - name: Clean previous build (optional)
-      shell: msys2 {0}
-      run: |
-        echo "Cleaning up previous build artifacts..."
-        rm -rf deps usr
-
-    - name: Build Julia with BinaryBuilder toolchain
-      shell: msys2 {0}
-      env:
-        USE_BINARYBUILDER: 1
-        MAKEFLAGS: -j2
-      run: |
-        echo "🏗️ Starting Julia build in $PWD"
-        make
-
-    - name: Archive result
-      uses: actions/upload-artifact@v4
-      with:
-        name: julia-build
-        path: ./usr
+      - name: Archive result
+        uses: actions/upload-artifact@v4
+        with:
+          name: julia-build
+          path: ./usr
