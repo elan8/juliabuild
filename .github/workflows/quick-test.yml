@@ -40,6 +40,8 @@ jobs:
           CC: /mingw64/bin/clang
           CXX: /mingw64/bin/clang++
           FC: /mingw64/bin/gfortran
+          CFLAGS: -std=gnu11
+          CXXFLAGS: -std=gnu++17
           USE_GPL_LIBS: 0
           USE_BLAS64: 1
           USE_INTEL_MKL: 0
