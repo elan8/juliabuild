@@ -6,7 +6,7 @@ on:
 jobs:
   quick-build:
     runs-on: windows-latest
-
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -29,7 +29,7 @@ jobs:
         run: |
           echo "Testing Python execution:"
           python -c 'import platform; print(platform.system())'
-
+          
           echo "Cloning Julia repository:"
           mkdir -p /c/julia
           cd /c/julia
@@ -66,4 +66,4 @@ jobs:
         with:
           name: julia-nogpl-quick-test-windows
           path: julia/julia.exe
-          retention-days: 7
+          retention-days: 7 
