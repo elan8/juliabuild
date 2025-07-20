@@ -23,6 +23,8 @@ jobs:
             wget
             make
             perl
+            mingw-w64-x86_64-gcc 
+            mingw-w64-x86_64-clang
 
 
       - name: Build Julia with BinaryBuilder toolchain
