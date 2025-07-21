@@ -47,21 +47,22 @@ jobs:
           # Build without GPL libraries
           USE_GPL_LIBS=0
 
-          # Option 3: Disable BinaryBuilder to avoid stdlib conflicts
-          # USE_BINARYBUILDER=0
+          # Use BinaryBuilder for dependencies (recommended for Windows)
+          USE_BINARYBUILDER=1
 
           # Use GNU C11 standard (same as official Julia build)
           JCFLAGS += -std=gnu11
           JCXXFLAGS += -std=gnu++17
 
-          # Alternative approach: Use preprocessor to avoid stdlib conflicts
-          # This tells the compiler to use BinaryBuilder's stdlib instead of MSYS2's
-          JCFLAGS += -D__MINGW32__
-          JCXXFLAGS += -D__MINGW32__
+          # Prioritize BinaryBuilder headers over MSYS2 stdlib
+          JCFLAGS += -I$(JULIAHOME)/deps/usr/include
+          JCXXFLAGS += -I$(JULIAHOME)/deps/usr/include
           
-          # Force use of BinaryBuilder's memory allocation functions
-          JCFLAGS += -D_aligned_msize=julia_aligned_msize
-          JCXXFLAGS += -D_aligned_msize=julia_aligned_msize
+          # Exclude MSYS2 system headers that conflict with BinaryBuilder
+          JCFLAGS += -nostdinc
+          JCXXFLAGS += -nostdinc
+          JCFLAGS += -isystem $(JULIAHOME)/deps/usr/include
+          JCXXFLAGS += -isystem $(JULIAHOME)/deps/usr/include
           EOF
 
           echo "Make.user contents:"
