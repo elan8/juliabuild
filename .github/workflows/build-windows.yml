@@ -10,10 +10,7 @@ jobs:
     steps:
       - name: checkout repo
         uses: actions/checkout@v4
-      - name: List workspace files
-        shell: msys2 {0}
-        run: |
-          ls -l "$GITHUB_WORKSPACE"
+
 
       - name: Set up MSYS2
         uses: msys2/setup-msys2@v2
@@ -34,7 +31,10 @@ jobs:
             cmake
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-toolchain
-
+      - name: List workspace files
+        shell: msys2 {0}
+        run: |
+          ls -l "$GITHUB_WORKSPACE"
       - name: Prepare build directory
         shell: msys2 {0}
         run: |
