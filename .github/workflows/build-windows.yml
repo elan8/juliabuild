@@ -27,6 +27,7 @@ jobs:
             python
             wget
             mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-toolchain
 
       - name: Clone Julia to clean path
         shell: msys2 {0}
@@ -43,6 +44,8 @@ jobs:
           which gcc
           gcc -v
           uname -a
+
+
 
       - name: Build Julia
         shell: msys2 {0}
