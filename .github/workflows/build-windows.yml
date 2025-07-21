@@ -38,6 +38,20 @@ jobs:
           cd julia
           git checkout release-1.10
 
+      - name: Add Make.user with C++14 flags and g++
+        shell: msys2 {0}
+        run: |
+          echo "CXX = g++" > /c/juliabuild/julia/Make.user
+          echo "CXXFLAGS += -std=c++14" >> /c/juliabuild/julia/Make.user
+
+      - name: Diagnostic check compiler versions
+        shell: msys2 {0}
+        run: |
+          which gcc
+          gcc --version
+          which g++
+          g++ --version
+
       - name: Diagnostic toolchain check
         shell: msys2 {0}
         run: |
