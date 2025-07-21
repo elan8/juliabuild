@@ -1,62 +1,62 @@
-name: Build Windows 
+name: Build Julia on Windows (MSYS2 Official)
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-windows:
+  build-julia-windows:
     runs-on: windows-latest
 
     steps:
-      - name: checkout repo
-        uses: actions/checkout@v4
-
-
       - name: Set up MSYS2
         uses: msys2/setup-msys2@v2
         with:
           update: true
+          msystem: MINGW64  # 🧠 Use the correct toolchain for Julia (MSVCRT-based)
           install: >-
             base-devel
-            diffutils 
-            git 
-            m4 
-            make 
-            patch 
-            tar 
-            p7zip 
-            curl 
+            git
+            make
+            m4
+            patch
+            tar
+            diffutils
+            curl
+            p7zip
+            cmake
             python
             wget
-            cmake
             mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-toolchain
-      - name: List workspace files
-        shell: msys2 {0}
-        run: |
-          ls -l "$GITHUB_WORKSPACE"
-      - name: Prepare build directory
-        shell: msys2 {0}
-        run: |
-          mkdir -p /home/build
-          cd /home/build
-          echo "Now in: $(pwd)"
 
-      - name: Clone Julia repository
+      - name: Clone Julia to clean path
         shell: msys2 {0}
         run: |
-          cd /home/build
-          git clone https://github.com/JuliaLang/julia.git julia
+          mkdir -p /c/juliabuild
+          cd /c/juliabuild
+          git clone https://github.com/JuliaLang/julia.git
+          cd julia
+          git checkout release-1.10
+
+      - name: Diagnostic toolchain check
+        shell: msys2 {0}
+        run: |
+          which gcc
+          gcc -v
+          uname -a
 
       - name: Build Julia
-        shell: bash
-        env:
-          MSYSTEM: MINGW64
-          PATH: /mingw64/bin:/usr/bin:/bin
+        shell: msys2 {0}
         run: |
-          cd /home/build/julia
-          echo "Starting build in: $(pwd)"
-          which mingw32-make
-          which gcc
-          mingw32-make -j$(nproc)
-          echo "Build complete. Julia executable should be at usr/bin/julia.exe"
+          cd /c/juliabuild/julia
+          make -j$(nproc)
+
+      - name: Verify build
+        shell: msys2 {0}
+        run: |
+          /c/juliabuild/julia/usr/bin/julia.exe --version
+
+      - name: Upload built Julia executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: julia-windows-exe
+          path: /c/juliabuild/julia/usr/bin/julia.exe
