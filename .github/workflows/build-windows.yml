@@ -32,6 +32,7 @@ jobs:
         shell: msys2 {0}
         env:
           MSYSTEM: MINGW64
+          PATH: /mingw64/bin:/usr/bin:/bin
         run: |
           echo "Cloning Julia repository:"
           git clone https://github.com/JuliaLang/julia.git
@@ -39,6 +40,8 @@ jobs:
 
 
           echo "Starting build in: $(pwd)"
-          make -j$(nproc)
+          which make
+          which gcc
+          make -j$(nproc) || mingw32-make -j$(nproc)
 
           echo "Build complete. Julia executable should be at usr/bin/julia.exe"
