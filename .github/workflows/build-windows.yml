@@ -8,26 +8,28 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Install Cygwin and required packages
-        shell: powershell
-        run: |
-          $cygwinUrl = "https://cygwin.com/setup-x86_64.exe"
-          $cygwinInstaller = "$env:TEMP\setup-x86_64.exe"
-          Invoke-WebRequest -Uri $cygwinUrl -OutFile $cygwinInstaller
-          
-          # Use a specific mirror and install required packages
-          & $cygwinInstaller -q -s https://mirrors.kernel.org/sourceware/cygwin/ -P cmake,gcc-g++,git,make,patch,curl,m4,python3,p7zip,mingw64-x86_64-gcc-g++,mingw64-x86_64-gcc-fortran
-          
-          # Add Cygwin to PATH for this session
-          $env:PATH = "C:\cygwin64\bin;$env:PATH"
+      - name: Set up MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >-
+            base-devel
+            diffutils 
+            git 
+            m4 
+            make 
+            patch 
+            tar 
+            p7zip 
+            curl 
+            python
+            wget
+            cmake
+            mingw-w64-x86_64-gcc
 
-      - name: Build Julia using Cygwin
-        shell: bash
+      - name: Build Julia
+        shell: msys2 {0}
         run: |
-          echo "Creating /c/julia directory"
-          mkdir -p /c/julia
-          cd /c/julia
-
           echo "Cloning Julia repository:"
           git clone https://github.com/JuliaLang/julia.git
           cd julia
@@ -36,6 +38,6 @@ jobs:
           echo 'XC_HOST = x86_64-w64-mingw32' > Make.user
 
           echo "Starting build in: $(pwd)"
-          make -j4
+          make -j$(nproc)
 
           echo "Build complete. Julia executable should be at usr/bin/julia.exe"
