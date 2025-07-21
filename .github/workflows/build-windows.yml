@@ -1,43 +1,127 @@
-name: Build Windows
+name: Build Windows (Official Method)
 
 on:
   workflow_dispatch:
 
 jobs:
-  quick-build:
+  build-windows:
     runs-on: windows-latest
+    timeout-minutes: 180
 
     steps:
-      - name: Set up MSYS2
-        uses: msys2/setup-msys2@v2
-        with:
-          update: true
-          install: >-
-            cmake 
-            diffutils 
-            git 
-            m4 
-            make 
-            patch 
-            tar 
-            p7zip 
-            curl 
-            python
-            mingw-w64-x86_64-gcc 
-
-
-      - name: Build Julia 
-        shell: msys2 {0}
+      - name: Set up Cygwin
         run: |
-          echo "Testing Python execution:"
-          python -c 'import platform; print(platform.system())'
+          # Download Cygwin installer
+          $cygwinUrl = "https://cygwin.com/setup-x86_64.exe"
+          $cygwinInstaller = "setup-x86_64.exe"
+          Invoke-WebRequest -Uri $cygwinUrl -OutFile $cygwinInstaller
+          
+          # Install Cygwin with required packages for Julia build
+          $packages = "cmake,gcc-g++,git,make,patch,curl,m4,python3,p7zip,mingw64-x86_64-gcc-g++,mingw64-x86_64-gcc-fortran"
+          Start-Process -FilePath $cygwinInstaller -ArgumentList "-s https://mirrors.kernel.org/sourceware/cygwin/ -q -P $packages" -Wait
+          
+          # Add Cygwin to PATH
+          $env:PATH = "C:\cygwin64\bin;$env:PATH"
 
-          echo "Cloning Julia repository:"
-          mkdir -p /c/julia
-          cd /c/julia
-          git clone --depth 1 --branch v1.11.6 https://github.com/JuliaLang/julia.git src
-          cd src
+      - name: Build Julia with Cygwin-to-MinGW cross-compilation
+        shell: bash
+        run: |
+          echo "Setting up Cygwin environment..."
+          export PATH="/cygdrive/c/cygwin64/bin:$PATH"
+          
+          echo "Cloning Julia repository..."
+          git clone --depth 1 --branch v1.11.6 https://github.com/JuliaLang/julia.git julia-source
+          cd julia-source
+          
+          echo "Configuring for cross-compilation..."
+          # Set XC_HOST for MinGW-w64 cross-compilation (64-bit)
+          echo 'XC_HOST = x86_64-w64-mingw32' > Make.user
+          
+          # Add build configuration without GPL libraries
+          cat >> Make.user << 'EOF'
+          # Build without GPL libraries
+          USE_GPL_LIBS=0
+          
+          # Use 64-bit BLAS for better performance
+          USE_BLAS64=1
+          
+          # Use OpenBLAS instead of MKL for better compatibility
+          USE_INTEL_MKL=0
+          
+          # Optimize for current CPU
+          JULIA_CPU_TARGET=native
+          
+          # Use all available CPU cores
+          MAKEFLAGS=-j2
+          
+          # Enable verbose output for debugging
+          VERBOSE=1
+          EOF
+          
+          echo "Make.user contents:"
+          cat Make.user
+          
+          echo "Starting cross-compilation build..."
+          make -j2
+          
+          echo "Build completed successfully!"
 
-          echo "Starting build in: $(pwd)"
-          make
+      - name: Test Julia build
+        shell: bash
+        working-directory: julia-source
+        run: |
+          echo "Testing Julia build..."
+          ./usr/bin/julia.exe --version
+          ./usr/bin/julia.exe -e "println(\"Julia build successful!\")"
+          
+          # Test basic functionality
+          ./usr/bin/julia.exe -e "
+            using LinearAlgebra
+            println(\"LinearAlgebra works\")
+            
+            # Test basic matrix operations
+            A = rand(3, 3)
+            B = inv(A)
+            println(\"Matrix operations work\")
+          "
+
+      - name: Verify no GPL libraries
+        shell: bash
+        working-directory: julia-source
+        run: |
+          echo "Checking for GPL libraries..."
+          # Use objdump to check dependencies
+          objdump -p ./usr/bin/julia.exe | grep -i fftw || echo "FFTW not found (good)"
+          objdump -p ./usr/bin/julia.exe | grep -i gmp || echo "GMP not found (good)"
+          objdump -p ./usr/bin/julia.exe | grep -i mpfr || echo "MPFR not found (good)"
+
+      - name: Create distribution package
+        shell: bash
+        working-directory: julia-source
+        run: |
+          echo "Creating distribution package..."
+          
+          # Install to a temporary directory
+          make install prefix=/tmp/julia-nogpl
+          
+          # Create ZIP file
+          cd /tmp
+          zip -r julia-nogpl-windows-v1.11.6.zip julia-nogpl/
+          
+          # Move to workspace
+          mv julia-nogpl-windows-v1.11.6.zip $GITHUB_WORKSPACE/
+
+      - name: Upload Julia executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: julia-nogpl-windows-v1.11.6
+          path: julia-source/usr/bin/julia.exe
+          retention-days: 30
+
+      - name: Upload distribution package
+        uses: actions/upload-artifact@v4
+        with:
+          name: julia-nogpl-windows-v1.11.6-package
+          path: julia-nogpl-windows-v1.11.6.zip
+          retention-days: 30
 

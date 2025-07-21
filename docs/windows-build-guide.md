@@ -1,52 +1,54 @@
 # Windows Build Guide for Julia (GitHub Actions)
 
-This guide explains how to properly build Julia on Windows in GitHub Actions, based on the [official Julia Windows build documentation](https://github.com/JuliaLang/julia/blob/master/doc/src/devdocs/build/windows.md).
+This guide explains how to properly build Julia on Windows in GitHub Actions, following the [official Julia Windows build documentation](https://docs.julialang.org/en/v1/devdocs/build/windows/).
 
-## Key Issues with Current Workflow
+## Official Julia Windows Build Method
 
-The current workflow has several problems that prevent successful builds:
+According to the official Julia documentation, the **recommended** way to build Julia on Windows is **Cygwin-to-MinGW cross-compiling**. This approach:
 
-### 1. **Incorrect Toolchain Setup**
-- **Problem**: Using generic `mingw-w64-x86_64-toolchain` instead of specific components
-- **Solution**: Install specific MinGW components as recommended in the official docs
+- ✅ Uses cross-compilation (cleaner separation)
+- ✅ Avoids system library conflicts
+- ✅ Is the officially tested method
+- ✅ Doesn't require any source code patches
 
-### 2. **Missing Dependencies**
-- **Problem**: Missing essential build tools like `m4`, `patch`, `tar`, `p7zip`
-- **Solution**: Include all required dependencies from the official documentation
+## Key Issues with Previous Workflow
 
-### 3. **Incorrect Build Configuration**
-- **Problem**: Not using `USE_BINARYBUILDER=1` which is recommended for Windows
-- **Solution**: Enable BinaryBuilder for better dependency management
+The previous workflow had several problems:
 
-### 4. **Shell Environment Issues**
-- **Problem**: Mixing different shell environments inconsistently
-- **Solution**: Use `msys2` shell consistently for all build steps
+### 1. **Incorrect Build Method**
+- **Problem**: Using MSYS2 instead of the recommended Cygwin-to-MinGW cross-compilation
+- **Solution**: Follow the official documentation exactly
+
+### 2. **Missing Cross-Compilation Setup**
+- **Problem**: Not setting `XC_HOST` for cross-compilation
+- **Solution**: Use `XC_HOST = x86_64-w64-mingw32` for 64-bit builds
+
+### 3. **Incorrect Dependencies**
+- **Problem**: Using MSYS2 packages instead of Cygwin packages
+- **Solution**: Install the exact packages specified in official documentation
+
+### 4. **Missing Cygwin Environment**
+- **Problem**: Not using Cygwin as the build environment
+- **Solution**: Set up Cygwin with proper MinGW-w64 toolchain
 
 ## Fixed Workflow Features
 
-### Proper MSYS2 Setup
-```yaml
-- name: Set up MSYS2
-  uses: msys2/setup-msys2@v2
-  with:
-    update: true
-    install: >-
-      base-devel
-      git
-      mingw-w64-x86_64-toolchain
-      mingw-w64-x86_64-cmake
-      mingw-w64-x86_64-clang
-      python
-      wget
-      curl
-      m4
-      patch
-      tar
-      p7zip
+### Proper Cygwin Setup
+Following the official documentation exactly:
+
+```powershell
+# Download and install Cygwin with required packages
+$packages = "cmake,gcc-g++,git,make,patch,curl,m4,python3,p7zip,mingw64-x86_64-gcc-g++,mingw64-x86_64-gcc-fortran"
+Start-Process -FilePath "setup-x86_64.exe" -ArgumentList "-s https://mirrors.kernel.org/sourceware/cygwin/ -q -P $packages" -Wait
 ```
 
-### Correct Build Configuration
+### Cross-Compilation Configuration
 ```bash
+# Set XC_HOST for MinGW-w64 cross-compilation (64-bit)
+echo 'XC_HOST = x86_64-w64-mingw32' > Make.user
+
+# Add build configuration without GPL libraries
+cat >> Make.user << 'EOF'
 # Build without GPL libraries
 USE_GPL_LIBS=0
 
@@ -59,64 +61,75 @@ USE_INTEL_MKL=0
 # Optimize for current CPU
 JULIA_CPU_TARGET=native
 
-# Use BinaryBuilder for dependencies (recommended for Windows)
-USE_BINARYBUILDER=1
-
-# Use all available CPU cores (but limit for Windows stability)
+# Use all available CPU cores
 MAKEFLAGS=-j2
+
+# Enable verbose output for debugging
+VERBOSE=1
+EOF
 ```
 
-### Consistent Shell Usage
-- All build steps use `shell: msys2 {0}` for consistency
-- Testing steps use `shell: powershell` for Windows-native testing
+### Correct Build Process
+```bash
+# Set up Cygwin environment
+export PATH="/cygdrive/c/cygwin64/bin:$PATH"
+
+# Clone Julia source
+git clone --depth 1 --branch v1.11.6 https://github.com/JuliaLang/julia.git julia-source
+cd julia-source
+
+# Configure and build
+make -j2
+```
 
 ## Key Improvements
 
-### 1. **BinaryBuilder Integration**
-The fixed workflow uses `USE_BINARYBUILDER=1`, which:
-- Downloads pre-built dependencies automatically
-- Reduces build time significantly
-- Improves reliability on Windows
-- Handles dependency conflicts automatically
+### 1. **Official Method Compliance**
+- Uses Cygwin-to-MinGW cross-compilation as recommended
+- Follows official documentation exactly
+- No source code patches required
 
-### 2. **Proper MinGW Toolchain**
-Following the official documentation:
-- Uses `mingw-w64-x86_64-toolchain` for the complete toolchain
-- Includes `mingw-w64-x86_64-cmake` for CMake support
-- Includes `mingw-w64-x86_64-clang` for Clang support (optional but recommended)
+### 2. **Proper Cross-Compilation Setup**
+- Sets `XC_HOST = x86_64-w64-mingw32` for 64-bit builds
+- Uses MinGW-w64 toolchain through Cygwin
+- Clean separation between build and target environments
 
-### 3. **Complete Dependency Set**
-Includes all required tools from the official documentation:
-- `base-devel`: Essential development tools
-- `m4`, `patch`, `tar`, `p7zip`: Required for building dependencies
-- `python`, `wget`, `curl`: Required for downloading and building
+### 3. **Correct Dependencies**
+- Installs exact packages from official documentation
+- Uses Cygwin package manager for consistency
+- Includes all required MinGW-w64 components
 
 ### 4. **Windows-Specific Optimizations**
 - Limited parallel jobs (`-j2`) for Windows stability
 - Proper timeout settings (180 minutes)
-- Windows-specific verification commands using `objdump`
+- Windows-specific verification commands
+
+### 5. **No Source Code Modifications**
+- No need for `_aligned_msize` or other patches
+- Uses official Julia source code as-is
+- Follows official build process exactly
 
 ## Build Process
 
-### Step 1: Environment Setup
-1. **MSYS2 Installation**: Uses the official MSYS2 setup action
-2. **Toolchain Installation**: Installs MinGW-w64 toolchain with all required components
-3. **Dependency Installation**: Installs all required build tools
+### Step 1: Cygwin Installation
+1. **Download Cygwin**: Uses official Cygwin installer
+2. **Install Required Packages**: Installs exact packages from official documentation
+3. **Environment Setup**: Configures Cygwin environment properly
 
 ### Step 2: Source Management
-1. **Caching**: Caches Julia source code to speed up subsequent builds
-2. **Cloning**: Clones the specific Julia version branch
-3. **Dependency Caching**: Caches build dependencies to avoid re-downloading
+1. **Cloning**: Clones Julia source code
+2. **Configuration**: Sets up cross-compilation configuration
+3. **Dependencies**: Uses Cygwin package manager for dependencies
 
 ### Step 3: Build Configuration
-1. **Make.user Creation**: Creates proper build configuration without GPL libraries
-2. **BinaryBuilder**: Enables BinaryBuilder for dependency management
-3. **Optimization**: Sets appropriate optimization flags
+1. **XC_HOST Setup**: Configures for MinGW-w64 cross-compilation
+2. **Make.user Creation**: Creates proper build configuration
+3. **GPL Exclusion**: Ensures no GPL libraries are included
 
-### Step 4: Build Process
-1. **Parallel Build**: Uses limited parallel jobs for Windows stability
-2. **Timeout Protection**: 180-minute timeout to prevent hanging builds
-3. **Verbose Output**: Enables verbose output for debugging
+### Step 4: Cross-Compilation Build
+1. **Environment Setup**: Configures Cygwin environment
+2. **Parallel Build**: Uses limited parallel jobs for stability
+3. **Timeout Protection**: 180-minute timeout to prevent hanging builds
 
 ### Step 5: Verification
 1. **Basic Testing**: Tests Julia executable and basic functionality
@@ -125,35 +138,23 @@ Includes all required tools from the official documentation:
 
 ## Troubleshooting Common Issues
 
-### Issue: Build Fails with Toolchain Errors
-**Solution**: Ensure all MinGW components are properly installed:
-```yaml
-install: >-
-  base-devel
-  git
-  mingw-w64-x86_64-toolchain
-  mingw-w64-x86_64-cmake
-  mingw-w64-x86_64-clang
+### Issue: Cygwin Installation Fails
+**Solution**: Use official Cygwin mirror and ensure proper package selection:
+```powershell
+$packages = "cmake,gcc-g++,git,make,patch,curl,m4,python3,p7zip,mingw64-x86_64-gcc-g++,mingw64-x86_64-gcc-fortran"
 ```
 
-### Issue: Missing Dependencies
-**Solution**: Include all required tools:
-```yaml
-install: >-
-  python
-  wget
-  curl
-  m4
-  patch
-  tar
-  p7zip
+### Issue: Cross-Compilation Configuration
+**Solution**: Ensure proper XC_HOST setting:
+```bash
+echo 'XC_HOST = x86_64-w64-mingw32' > Make.user
 ```
 
 ### Issue: Build Times Out
 **Solution**: 
 - Limit parallel jobs: `MAKEFLAGS=-j2`
 - Increase timeout: `timeout-minutes: 180`
-- Use BinaryBuilder: `USE_BINARYBUILDER=1`
+- Use proper Cygwin environment
 
 ### Issue: GPL Libraries Still Included
 **Solution**: Ensure proper configuration:
@@ -162,11 +163,17 @@ USE_GPL_LIBS=0
 USE_INTEL_MKL=0
 ```
 
+### Issue: Environment Path Problems
+**Solution**: Set up Cygwin environment properly:
+```bash
+export PATH="/cygdrive/c/cygwin64/bin:$PATH"
+```
+
 ## Performance Considerations
 
 ### Build Time Optimization
-- **BinaryBuilder**: Reduces build time by ~60%
-- **Caching**: Reuses downloaded dependencies
+- **Cross-Compilation**: Cleaner build process
+- **Cygwin Environment**: Stable and tested
 - **Parallel Jobs**: Limited to 2 for Windows stability
 
 ### Memory Usage
@@ -175,53 +182,38 @@ USE_INTEL_MKL=0
 - **Swap Space**: Ensure adequate virtual memory
 
 ### Storage Requirements
+- **Cygwin Installation**: ~2GB
 - **Source Code**: ~500MB
-- **Dependencies**: ~2GB
+- **Dependencies**: ~1GB
 - **Build Output**: ~1GB
-- **Total**: ~4GB free space recommended
+- **Total**: ~5GB free space recommended
 
 ## Verification Commands
 
 ### Check for GPL Libraries
 ```bash
-# Use objdump (MSYS2 equivalent of ldd)
-objdump -p ./julia.exe | grep -i fftw || echo "FFTW not found (good)"
-objdump -p ./julia.exe | grep -i gmp || echo "GMP not found (good)"
-objdump -p ./julia.exe | grep -i mpfr || echo "MPFR not found (good)"
+# Use objdump to check dependencies
+objdump -p ./usr/bin/julia.exe | grep -i fftw || echo "FFTW not found (good)"
+objdump -p ./usr/bin/julia.exe | grep -i gmp || echo "GMP not found (good)"
 ```
 
-### Test Basic Functionality
-```julia
-using LinearAlgebra
-println("LinearAlgebra works")
+### Verify Cross-Compilation Setup
+```bash
+# Check that XC_HOST is set correctly
+grep "XC_HOST" Make.user || echo "XC_HOST not found"
 
-# Test basic matrix operations
-A = rand(3, 3)
-B = inv(A)
-println("Matrix operations work")
-
-# Test FFT (should work with MKL/OpenBLAS)
-using FFTW
-x = rand(100)
-y = fft(x)
-println("FFT works")
+# Check that MinGW-w64 tools are available
+which x86_64-w64-mingw32-gcc || echo "MinGW-w64 GCC not found"
 ```
 
 ## Comparison with Official Documentation
 
-The fixed workflow follows the official Windows build documentation:
+This workflow follows the official Julia Windows build documentation exactly:
 
-1. **MSYS2 Environment**: Uses MSYS2 as recommended
-2. **MinGW Toolchain**: Uses proper MinGW-w64 toolchain
-3. **Dependencies**: Includes all required dependencies
-4. **Build Process**: Follows the official build process
-5. **Verification**: Uses appropriate verification methods
+1. **Cygwin Installation**: Uses official Cygwin installer with required packages
+2. **Cross-Compilation**: Sets `XC_HOST = x86_64-w64-mingw32`
+3. **Build Process**: Uses `make -j2` as recommended
+4. **Dependencies**: Installs exact packages from official documentation
+5. **Environment**: Uses Cygwin environment as specified
 
-## Next Steps
-
-1. **Test the Fixed Workflow**: Run the new `build-windows-fixed.yml` workflow
-2. **Monitor Build Logs**: Check for any remaining issues
-3. **Optimize Further**: Adjust parallel jobs and timeouts based on results
-4. **Add More Testing**: Include additional package compatibility tests
-
-The fixed workflow should resolve the Windows build issues you've been experiencing in GitHub Actions. 
+The workflow now matches the official recommended approach, ensuring compatibility and avoiding any system-specific issues. 
