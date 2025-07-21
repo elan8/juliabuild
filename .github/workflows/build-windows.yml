@@ -41,6 +41,11 @@ jobs:
           cd /home/build
           git clone https://github.com/JuliaLang/julia.git julia
 
+      - name: List workspace files
+        shell: msys2 {0}
+        run: |
+          ls -l "$GITHUB_WORKSPACE"
+
       - name: Copy custom CI Makefile
         shell: msys2 {0}
         run: |
