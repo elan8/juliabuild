@@ -9,15 +9,8 @@ jobs:
 
     steps:
 
-      - name: Create directory
-        run: |
-          if not exist C:\msys64 mkdir C:\msys64
-        shell: cmd
-
       - name: Download and install MSYS2
         run: |
-          if not exist C:\msys64 mkdir C:\msys64
-          cd C:\msys64
           set MSYS2_VERSION=20240507
           set MSYS2_DOWNLOAD_URL=https://repo.msys2.org/distrib/x86_64/msys2-base-x86_64-%MSYS2_VERSION%.sfx.exe
           powershell -Command "Invoke-WebRequest -Uri %MSYS2_DOWNLOAD_URL% -OutFile C:/windows/temp/msys2-base.sfx.exe"
