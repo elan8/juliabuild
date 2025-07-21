@@ -8,33 +8,24 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Set up MSYS2 root dir
+
+      - name: Download and install MSYS2
         run: |
           if not exist C:\msys64 mkdir C:\msys64
-        shell: cmd
-
-      - name: Download pinned MSYS2 snapshot
-        run: |
-          curl -L -o msys2-base.tar.xz https://repo.msys2.org/distrib/x86_64/msys2-base-x86_64-20240104.tar.xz
-        shell: cmd
-
-      - name: Extract MSYS2
-        run: |
-          tar -xvf msys2-base.tar.xz -C C:\msys64 --strip-components=1
-        shell: bash
-
-      - name: Add MSYS2 to PATH
-        run: |
-          echo "C:\msys64\usr\bin" | Out-File -Append $env:GITHUB_PATH
-          echo "C:\msys64\mingw64\bin" | Out-File -Append $env:GITHUB_PATH
+          cd C:\msys64
+          set MSYS2_VERSION=20240507
+          set MSYS2_DOWNLOAD_URL=https://repo.msys2.org/distrib/x86_64/msys2-base-x86_64-%MSYS2_VERSION%.sfx.exe
+          powershell -Command "Invoke-WebRequest -Uri %MSYS2_DOWNLOAD_URL% -OutFile C:/windows/temp/msys2-base.sfx.exe"
+          C:\windows\temp\msys2-base.sfx.exe x -o"C:"
         shell: powershell
 
-      - name: Set environment variables
+      - name: Verify MSYS2 installation
         run: |
-          echo "MSYSTEM=MINGW64" | Out-File -Append $env:GITHUB_ENV
-          echo "CHERE_INVOKING=1" | Out-File -Append $env:GITHUB_ENV
-          echo "MSYS2_PATH_TYPE=inherit" | Out-File -Append $env:GITHUB_ENV
-        shell: powershell
+          echo "Contents of C:\msys64:"
+          dir C:\msys64
+          echo "Contents of C:\msys64\usr\bin:"
+          dir C:\msys64\usr\bin
+        shell: cmd
 
       - name: Update package database (optional, not full update!)
         run: |
