@@ -30,6 +30,8 @@ jobs:
 
       - name: Build Julia
         shell: msys2 {0}
+        env:
+          MSYSTEM: MINGW64
         run: |
           echo "Cloning Julia repository:"
           git clone https://github.com/JuliaLang/julia.git
