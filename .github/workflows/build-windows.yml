@@ -29,9 +29,11 @@ jobs:
           echo "Setting up Cygwin environment..."
           export PATH="/cygdrive/c/cygwin64/bin:$PATH"
           
+          mkdir -p /c/julia
+          cd /c/julia
           echo "Cloning Julia repository..."
-          git clone --depth 1 --branch v1.11.6 https://github.com/JuliaLang/julia.git julia-source
-          cd julia-source
+          git clone --depth 1 --branch v1.11.6 https://github.com/JuliaLang/julia.git src
+          cd src
           
           echo "Configuring for cross-compilation..."
           # Set XC_HOST for MinGW-w64 cross-compilation (64-bit)
