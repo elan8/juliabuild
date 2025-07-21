@@ -48,5 +48,5 @@ jobs:
           cd julia
           git checkout v1.11.6
           pwd
-          C:\msys64\usr\bin\bash -lc "julia && make -j$(nproc)"
+          C:\msys64\usr\bin\bash -lc "cd /d/a/juliabuild/juliabuild/julia && make -j$(nproc)"
         shell: cmd
