@@ -31,9 +31,20 @@ jobs:
       - name: Prepare build directory
         shell: msys2 {0}
         run: |
-          mkdir -p /c/julia-build
-          cd /c/julia-build
+          mkdir -p /home/build
+          cd /home/build
           echo "Now in: $(pwd)"
+
+      - name: Clone Julia repository
+        shell: msys2 {0}
+        run: |
+          cd /home/build
+          git clone https://github.com/JuliaLang/julia.git julia
+
+      - name: Patch Python -c quoting issue
+        shell: msys2 {0}
+        run: |
+          find /home/build/julia -type f -exec sed -i 's|python -c \(from __future__.*print(platform.system())\)|python -c "\1"|' {} +
 
       - name: Build Julia
         shell: msys2 {0}
@@ -41,9 +52,7 @@ jobs:
           MSYSTEM: MINGW64
           PATH: /mingw64/bin:/usr/bin:/bin
         run: |
-          cd /c/julia-build
-          git clone https://github.com/JuliaLang/julia.git julia
-          cd julia
+          cd /home/build/julia
           echo "Starting build in: $(pwd)"
           which mingw32-make
           which gcc
