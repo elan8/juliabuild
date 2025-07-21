@@ -48,15 +48,8 @@ jobs:
           cd /home/build
           git clone https://github.com/JuliaLang/julia.git julia
 
-
-
-      - name: Copy custom CI Makefile
-        shell: msys2 {0}
-        run: |
-          cp "$GITHUB_WORKSPACE/Makefile.ci" /home/build/julia/Makefile
-
       - name: Build Julia
-        shell: msys2 {0}
+        shell: bash
         env:
           MSYSTEM: MINGW64
           PATH: /mingw64/bin:/usr/bin:/bin
