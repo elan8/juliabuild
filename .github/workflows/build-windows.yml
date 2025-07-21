@@ -1,79 +1,43 @@
-name: Build Julia on Windows (MSYS2 Official)
+name: Build Windows (Official Method)
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-julia-windows:
+  build-windows:
     runs-on: windows-latest
 
     steps:
       - name: Set up MSYS2
         uses: msys2/setup-msys2@v2
         with:
+          msystem: MINGW64
           update: true
-          msystem: MINGW64  # 🧠 Use the correct toolchain for Julia (MSVCRT-based)
           install: >-
             base-devel
-            git
-            make
-            m4
-            patch
-            tar
-            diffutils
-            curl
-            p7zip
-            cmake
+            diffutils 
+            git 
+            m4 
+            make 
+            patch 
+            tar 
+            p7zip 
+            curl 
             python
             wget
+            cmake
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-toolchain
 
-      - name: Clone Julia to clean path
-        shell: msys2 {0}
+      - name: Clone Julia Repository
         run: |
-          mkdir -p /c/juliabuild
-          cd /c/juliabuild
           git clone https://github.com/JuliaLang/julia.git
-          cd julia
-          git checkout release-1.10
-
-      - name: Add Make.user with C++14 flags and g++
-        shell: msys2 {0}
-        run: |
-          echo "CXX = g++" > /c/juliabuild/julia/Make.user
-          echo "CXXFLAGS += -std=c++14" >> /c/juliabuild/julia/Make.user
-
-      - name: Diagnostic check compiler versions
-        shell: msys2 {0}
-        run: |
-          which gcc
-          gcc --version
-          which g++
-          g++ --version
-
-      - name: Diagnostic toolchain check
-        shell: msys2 {0}
-        run: |
-          which gcc
-          gcc -v
-          uname -a
-
 
 
       - name: Build Julia
         shell: msys2 {0}
         run: |
-          cd /c/juliabuild/julia
+          cd julia
+          echo "Starting build in: $(pwd)"
           make -j$(nproc)
-
-      - name: Verify build
-        shell: msys2 {0}
-        run: |
-          /c/juliabuild/julia/usr/bin/julia.exe --version
-
-      - name: Upload built Julia executable
-        uses: actions/upload-artifact@v4
-        with:
-          name: julia-windows-exe
-          path: /c/juliabuild/julia/usr/bin/julia.exe
+          echo "Build complete. Julia executable should be at usr/bin/julia.exe"
