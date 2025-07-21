@@ -41,11 +41,6 @@ jobs:
           cd /home/build
           git clone https://github.com/JuliaLang/julia.git julia
 
-      - name: Patch Python -c quoting issue
-        shell: msys2 {0}
-        run: |
-          find /home/build/julia -type f -exec sed -i 's|python -c \(from __future__.*print(platform.system())\)|python -c "\1"|' {} +
-
       - name: Use custom CI Makefile
         shell: msys2 {0}
         run: |
