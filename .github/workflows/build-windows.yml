@@ -35,8 +35,6 @@ jobs:
           git clone https://github.com/JuliaLang/julia.git
           cd julia
 
-          echo "Creating Make.user for cross-compiling..."
-          echo 'XC_HOST = x86_64-w64-mingw32' > Make.user
 
           echo "Starting build in: $(pwd)"
           make -j$(nproc)
