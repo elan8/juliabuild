@@ -26,6 +26,7 @@ jobs:
             wget
             cmake
             mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-toolchain
 
       - name: Build Julia
         shell: msys2 {0}
