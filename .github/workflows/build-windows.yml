@@ -42,14 +42,10 @@ jobs:
           C:\msys64\usr\bin\bash -lc "pacman -S --noconfirm base-devel git mingw-w64-x86_64-toolchain make cmake m4 perl python3 patch libcrypt-devel diffutils tar unzip pkgconf"
         shell: cmd
 
-      - name: Clone Julia source
+      - name: Clone and Build Julia
         run: |
           git clone https://github.com/JuliaLang/julia.git
           cd julia
           git checkout v1.11.6
-        shell: bash
-
-      - name: Build Julia
-        run: C:\msys64\usr\bin\bash -lc "make -j$(nproc)"
+          C:\msys64\usr\bin\bash -lc "make -j$(nproc)"
         shell: cmd
-        working-directory: julia
