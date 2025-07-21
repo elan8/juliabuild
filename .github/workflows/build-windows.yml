@@ -1,45 +1,62 @@
-name: Build Windows (Official Method)
+name: Build Julia on Windows with Pinned MSYS2
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-windows:
+  build-julia:
     runs-on: windows-latest
 
     steps:
-      - name: Set up MSYS2
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          update: false
-          install: >-
-            base-devel
-            diffutils 
-            git 
-            m4 
-            make 
-            patch 
-            tar 
-            p7zip 
-            curl 
-            python
-            wget
-            cmake
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-toolchain
+      - name: Set up MSYS2 root dir
+        run: |
+          mkdir C:\msys64
+        shell: cmd
 
+      - name: Download pinned MSYS2 snapshot
+        run: |
+          curl -L -o msys2-base.tar.xz https://repo.msys2.org/distrib/x86_64/msys2-base-x86_64-20240104.tar.xz
+        shell: cmd
 
+      - name: Extract MSYS2
+        run: |
+          tar -xvf msys2-base.tar.xz -C C:\msys64 --strip-components=1
+        shell: bash
 
-      - name: Clone Julia Repository
+      - name: Add MSYS2 to PATH
+        run: |
+          echo "C:\msys64\usr\bin" | Out-File -Append $env:GITHUB_PATH
+          echo "C:\msys64\mingw64\bin" | Out-File -Append $env:GITHUB_PATH
+        shell: powershell
+
+      - name: Set environment variables
+        run: |
+          echo "MSYSTEM=MINGW64" | Out-File -Append $env:GITHUB_ENV
+          echo "CHERE_INVOKING=1" | Out-File -Append $env:GITHUB_ENV
+          echo "MSYS2_PATH_TYPE=inherit" | Out-File -Append $env:GITHUB_ENV
+        shell: powershell
+
+      - name: Update package database (optional, not full update!)
+        run: |
+          C:\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm"
+        shell: cmd
+
+      - name: Install build dependencies
+        run: |
+          C:\msys64\usr\bin\bash -lc "pacman -S --noconfirm base-devel git mingw-w64-x86_64-toolchain \
+            make cmake m4 perl python3 patch libcrypt-devel diffutils \
+            tar unzip pkgconf"
+        shell: cmd
+
+      - name: Clone Julia source
         run: |
           git clone https://github.com/JuliaLang/julia.git
-
+          cd julia
+          git checkout v1.11.6
+        shell: bash
 
       - name: Build Julia
-        shell: msys2 {0}
         run: |
           cd julia
-          echo "Starting build in: $(pwd)"
-          make -j$(nproc)
-          echo "Build complete. Julia executable should be at usr/bin/julia.exe"
+          C:\msys64\usr\bin\bash -lc "make -j$(nproc)"
+        shell: cmd
