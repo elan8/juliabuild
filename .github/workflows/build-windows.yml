@@ -50,7 +50,6 @@ jobs:
         shell: bash
 
       - name: Build Julia
-        run: |
-          cd julia
-          C:\msys64\usr\bin\bash -lc "make -j$(nproc)"
+        run: C:\msys64\usr\bin\bash -lc "make -j$(nproc)"
         shell: cmd
+        working-directory: julia
