@@ -8,6 +8,13 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      - name: checkout repo
+        uses: actions/checkout@v4
+      - name: List workspace files
+        shell: msys2 {0}
+        run: |
+          ls -l "$GITHUB_WORKSPACE"
+
       - name: Set up MSYS2
         uses: msys2/setup-msys2@v2
         with:
@@ -41,10 +48,7 @@ jobs:
           cd /home/build
           git clone https://github.com/JuliaLang/julia.git julia
 
-      - name: List workspace files
-        shell: msys2 {0}
-        run: |
-          ls -l "$GITHUB_WORKSPACE"
+
 
       - name: Copy custom CI Makefile
         shell: msys2 {0}
