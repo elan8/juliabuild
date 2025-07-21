@@ -41,10 +41,10 @@ jobs:
           cd /home/build
           git clone https://github.com/JuliaLang/julia.git julia
 
-      - name: Use custom CI Makefile
+      - name: Copy custom CI Makefile
         shell: msys2 {0}
         run: |
-          cp /home/build/Makefile.ci /home/build/julia/Makefile
+          cp "$GITHUB_WORKSPACE/Makefile.ci" /home/build/julia/Makefile
 
       - name: Build Julia
         shell: msys2 {0}
