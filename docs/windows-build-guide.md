@@ -11,6 +11,57 @@ According to the official Julia documentation, the **recommended** way to build 
 - ✅ Is the officially tested method
 - ✅ Doesn't require any source code patches
 
+## Docker-Based Approach (Recommended for GitHub Actions)
+
+For GitHub Actions, we provide a **Docker-based approach** that follows the exact same method as the official Julia Buildkite process:
+
+### Why Use Docker?
+
+1. **Official Method**: Uses the same `juliapackaging/package-windows-x86_64:v7.10` Docker image as the official Julia build
+2. **Consistent Environment**: Guarantees the same build environment as official releases
+3. **No System Conflicts**: Avoids all Windows-specific compilation issues
+4. **Cross-Platform**: Can build Windows binaries from Linux runners
+5. **Reproducible**: Same results every time
+
+### Docker Workflow Features
+
+The `build-windows-docker.yml` workflow:
+
+- ✅ **Uses Official Docker Image**: `juliapackaging/package-windows-x86_64:v7.10`
+- ✅ **Same Build Process**: Uses the same approach as official Buildkite
+- ✅ **BinaryBuilder Integration**: Uses `USE_BINARYBUILDER=1` for dependencies
+- ✅ **No GPL Libraries**: Builds without GPL-licensed libraries
+- ✅ **Comprehensive Testing**: Verifies build and functionality
+- ✅ **Artifact Creation**: Creates distribution packages
+
+### Docker Build Process
+
+The workflow follows the official Buildkite configuration exactly:
+
+```yaml
+# Use the same Docker image as the official Buildkite process
+docker run --rm \
+  -v "$(pwd)/julia-source:/julia-source" \
+  -w /julia-source \
+  -e JULIA_CPU_THREADS=2 \
+  -e VERBOSE=1 \
+  juliapackaging/package-windows-x86_64:v7.10 \
+  bash -c "
+    echo 'Starting Julia build...'
+    make -j2
+    
+    echo 'Testing Julia build...'
+    ./julia --version
+    ./julia -e 'println(\"Julia build successful!\")'
+  "
+```
+
+### Key Differences from Buildkite
+
+1. **Volume Mounting**: Instead of copying files into the container, we mount the Julia source directory
+2. **Direct Execution**: Run the build commands directly in the container
+3. **Artifact Extraction**: Copy the built binary back to the host
+
 ## Key Issues with Previous Workflow
 
 The previous workflow had several problems:
@@ -118,102 +169,66 @@ make -j2
 
 ### Step 2: Source Management
 1. **Cloning**: Clones Julia source code
-2. **Configuration**: Sets up cross-compilation configuration
-3. **Dependencies**: Uses Cygwin package manager for dependencies
+2. **Configuration**: Creates `Make.user` with proper settings
+3. **Dependencies**: Uses BinaryBuilder for consistent dependencies
 
-### Step 3: Build Configuration
-1. **XC_HOST Setup**: Configures for MinGW-w64 cross-compilation
-2. **Make.user Creation**: Creates proper build configuration
-3. **GPL Exclusion**: Ensures no GPL libraries are included
+### Step 3: Build Process
+1. **Cross-Compilation**: Uses MinGW-w64 toolchain
+2. **Parallel Build**: Uses limited parallelism for stability
+3. **Verification**: Tests build and functionality
 
-### Step 4: Cross-Compilation Build
-1. **Environment Setup**: Configures Cygwin environment
-2. **Parallel Build**: Uses limited parallel jobs for stability
-3. **Timeout Protection**: 180-minute timeout to prevent hanging builds
+### Step 4: Artifact Creation
+1. **Binary Extraction**: Extracts Julia executable
+2. **Package Creation**: Creates distribution packages
+3. **Upload**: Uploads artifacts for download
 
-### Step 5: Verification
-1. **Basic Testing**: Tests Julia executable and basic functionality
-2. **GPL Verification**: Checks that GPL libraries are not included
-3. **Package Testing**: Tests core Julia packages
+## Comparison of Methods
 
-## Troubleshooting Common Issues
+| Method | Pros | Cons | Use Case |
+|--------|------|------|----------|
+| **Docker (Recommended)** | ✅ Official method<br>✅ No system conflicts<br>✅ Cross-platform<br>✅ Reproducible | ❌ Requires Docker<br>❌ Larger build time | GitHub Actions, CI/CD |
+| **Cygwin-to-MinGW** | ✅ Official documentation<br>✅ Native Windows build<br>✅ Full control | ❌ Complex setup<br>❌ System conflicts<br>❌ Windows-only | Local development |
+| **MSYS2** | ✅ Easy setup<br>✅ Good package manager | ❌ Not official method<br>❌ System conflicts<br>❌ Limited compatibility | Quick testing |
 
-### Issue: Cygwin Installation Fails
-**Solution**: Use official Cygwin mirror and ensure proper package selection:
-```powershell
-$packages = "cmake,gcc-g++,git,make,patch,curl,m4,python3,p7zip,mingw64-x86_64-gcc-g++,mingw64-x86_64-gcc-fortran"
-```
+## Recommended Approach
 
-### Issue: Cross-Compilation Configuration
-**Solution**: Ensure proper XC_HOST setting:
-```bash
-echo 'XC_HOST = x86_64-w64-mingw32' > Make.user
-```
+For **GitHub Actions**, use the **Docker-based approach** (`build-windows-docker.yml`):
 
-### Issue: Build Times Out
-**Solution**: 
-- Limit parallel jobs: `MAKEFLAGS=-j2`
-- Increase timeout: `timeout-minutes: 180`
-- Use proper Cygwin environment
+1. **Most Reliable**: Uses official Docker images
+2. **No Conflicts**: Avoids all Windows-specific issues
+3. **Cross-Platform**: Can build from Linux runners
+4. **Official Method**: Same as official Julia build process
 
-### Issue: GPL Libraries Still Included
-**Solution**: Ensure proper configuration:
-```bash
-USE_GPL_LIBS=0
-USE_INTEL_MKL=0
-```
+For **Local Development**, use the **Cygwin-to-MinGW approach** (`build-windows.yml`):
 
-### Issue: Environment Path Problems
-**Solution**: Set up Cygwin environment properly:
-```bash
-export PATH="/cygdrive/c/cygwin64/bin:$PATH"
-```
+1. **Native Build**: Builds directly on Windows
+2. **Full Control**: Complete control over build environment
+3. **Official Documentation**: Follows official Julia docs exactly
 
-## Performance Considerations
+## Troubleshooting
 
-### Build Time Optimization
-- **Cross-Compilation**: Cleaner build process
-- **Cygwin Environment**: Stable and tested
-- **Parallel Jobs**: Limited to 2 for Windows stability
+### Common Issues
 
-### Memory Usage
-- **Recommended**: 8GB+ RAM for Windows builds
-- **Minimum**: 4GB RAM
-- **Swap Space**: Ensure adequate virtual memory
+1. **`_aligned_msize` Conflict**: This is resolved by using the official Docker image or proper cross-compilation setup
+2. **Missing Dependencies**: Ensure all required packages are installed
+3. **Build Timeouts**: Use limited parallelism (`-j2`) for Windows stability
+4. **Memory Issues**: Reduce parallel jobs and increase timeout
 
-### Storage Requirements
-- **Cygwin Installation**: ~2GB
-- **Source Code**: ~500MB
-- **Dependencies**: ~1GB
-- **Build Output**: ~1GB
-- **Total**: ~5GB free space recommended
+### Debug Steps
 
-## Verification Commands
+1. **Check Environment**: Verify all required tools are available
+2. **Review Logs**: Check verbose output for specific errors
+3. **Test Incrementally**: Build dependencies separately if needed
+4. **Use Official Method**: Follow official documentation exactly
 
-### Check for GPL Libraries
-```bash
-# Use objdump to check dependencies
-objdump -p ./usr/bin/julia.exe | grep -i fftw || echo "FFTW not found (good)"
-objdump -p ./usr/bin/julia.exe | grep -i gmp || echo "GMP not found (good)"
-```
+## Conclusion
 
-### Verify Cross-Compilation Setup
-```bash
-# Check that XC_HOST is set correctly
-grep "XC_HOST" Make.user || echo "XC_HOST not found"
+The **Docker-based approach** is recommended for GitHub Actions as it:
 
-# Check that MinGW-w64 tools are available
-which x86_64-w64-mingw32-gcc || echo "MinGW-w64 GCC not found"
-```
+- ✅ Uses the exact same method as official Julia builds
+- ✅ Avoids all Windows-specific compilation issues
+- ✅ Provides consistent, reproducible results
+- ✅ Requires no source code modifications
+- ✅ Works reliably in CI/CD environments
 
-## Comparison with Official Documentation
-
-This workflow follows the official Julia Windows build documentation exactly:
-
-1. **Cygwin Installation**: Uses official Cygwin installer with required packages
-2. **Cross-Compilation**: Sets `XC_HOST = x86_64-w64-mingw32`
-3. **Build Process**: Uses `make -j2` as recommended
-4. **Dependencies**: Installs exact packages from official documentation
-5. **Environment**: Uses Cygwin environment as specified
-
-The workflow now matches the official recommended approach, ensuring compatibility and avoiding any system-specific issues. 
+This approach ensures that your builds are as close as possible to the official Julia releases while avoiding the complexity and potential issues of native Windows builds. 
