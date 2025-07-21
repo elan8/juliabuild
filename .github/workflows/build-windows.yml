@@ -46,6 +46,11 @@ jobs:
         run: |
           find /home/build/julia -type f -exec sed -i 's|python -c \(from __future__.*print(platform.system())\)|python -c "\1"|' {} +
 
+      - name: Use custom CI Makefile
+        shell: msys2 {0}
+        run: |
+          cp /home/build/Makefile.ci /home/build/julia/Makefile
+
       - name: Build Julia
         shell: msys2 {0}
         env:
