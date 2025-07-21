@@ -1,4 +1,4 @@
-name: Build Windows (Official Method)
+name: Build Julia Windows (Pinned MinGW-w64 GCC/CRT)
 
 on:
   workflow_dispatch:
@@ -8,44 +8,46 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Set up MSYS2
+      - name: Set up MSYS2 (MINGW64)
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
           update: true
           install: >-
             base-devel
-            diffutils 
-            git 
-            m4 
-            make 
-            patch 
-            tar 
-            p7zip 
-            curl 
+            diffutils
+            git
+            m4
+            make
+            patch
+            tar
+            p7zip
+            curl
             python
             wget
             cmake
-            mingw-w64-x86_64-gcc
             mingw-w64-x86_64-toolchain
 
       - name: Downgrade GCC and CRT to compatible versions
         shell: msys2 {0}
         run: |
-          curl -LO https://mirror.msys2.org/mingw/mingw64/mingw-w64-x86_64-crt-10.0.0-1-any.pkg.tar.zst
-          curl -LO https://mirror.msys2.org/mingw/mingw64/mingw-w64-x86_64-gcc-12.2.0-3-any.pkg.tar.zst
+          wget --content-disposition https://mirror.msys2.org/mingw/mingw64/mingw-w64-x86_64-crt-10.0.0-1-any.pkg.tar.zst
+          wget --content-disposition https://mirror.msys2.org/mingw/mingw64/mingw-w64-x86_64-gcc-12.2.0-3-any.pkg.tar.zst
+
+          ls -lh mingw-w64-x86_64-*.pkg.tar.zst
+          file mingw-w64-x86_64-*.pkg.tar.zst
+
           pacman -U --noconfirm mingw-w64-x86_64-crt-10.0.0-1-any.pkg.tar.zst mingw-w64-x86_64-gcc-12.2.0-3-any.pkg.tar.zst
 
-
-      - name: Clone Julia Repository
+      - name: Clone Julia repository
         run: |
           git clone https://github.com/JuliaLang/julia.git
-
+          cd julia
+          # Optionally checkout a specific release, e.g.
+          # git checkout release-1.10
 
       - name: Build Julia
         shell: msys2 {0}
         run: |
           cd julia
-          echo "Starting build in: $(pwd)"
           make -j$(nproc)
-          echo "Build complete. Julia executable should be at usr/bin/julia.exe"
