@@ -11,9 +11,9 @@ jobs:
 
       - name: Download and install MSYS2
         run: |
-          set MSYS2_VERSION=20240507
-          set MSYS2_DOWNLOAD_URL=https://repo.msys2.org/distrib/x86_64/msys2-base-x86_64-%MSYS2_VERSION%.sfx.exe
-          powershell -Command "Invoke-WebRequest -Uri %MSYS2_DOWNLOAD_URL% -OutFile C:/windows/temp/msys2-base.sfx.exe"
+          $MSYS2_VERSION = "20240507"
+          $MSYS2_DOWNLOAD_URL = "https://repo.msys2.org/distrib/x86_64/msys2-base-x86_64-$MSYS2_VERSION.sfx.exe"
+          Invoke-WebRequest -Uri $MSYS2_DOWNLOAD_URL -OutFile C:/windows/temp/msys2-base.sfx.exe
           C:\windows\temp\msys2-base.sfx.exe x -o"C:"
         shell: powershell
 
