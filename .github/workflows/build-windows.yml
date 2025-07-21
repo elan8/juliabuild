@@ -9,6 +9,11 @@ jobs:
 
     steps:
 
+      - name: Create directory
+        run: |
+          if not exist C:\msys64 mkdir C:\msys64
+        shell: cmd
+
       - name: Download and install MSYS2
         run: |
           if not exist C:\msys64 mkdir C:\msys64
