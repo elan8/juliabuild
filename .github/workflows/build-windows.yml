@@ -39,9 +39,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          C:\msys64\usr\bin\bash -lc "pacman -S --noconfirm base-devel git mingw-w64-x86_64-toolchain \
-            make cmake m4 perl python3 patch libcrypt-devel diffutils \
-            tar unzip pkgconf"
+          C:\msys64\usr\bin\bash -lc "pacman -S --noconfirm base-devel git mingw-w64-x86_64-toolchain make cmake m4 perl python3 patch libcrypt-devel diffutils tar unzip pkgconf"
         shell: cmd
 
       - name: Clone Julia source
