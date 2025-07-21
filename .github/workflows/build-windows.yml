@@ -14,10 +14,15 @@ jobs:
           $cygwinUrl = "https://cygwin.com/setup-x86_64.exe"
           $cygwinInstaller = "$env:TEMP\setup-x86_64.exe"
           Invoke-WebRequest -Uri $cygwinUrl -OutFile $cygwinInstaller
-          & $cygwinInstaller -q -P cmake,gcc-g++,git,make,patch,curl,m4,python3,p7zip,mingw64-x86_64-gcc-g++,mingw64-x86_64-gcc-fortran
+          
+          # Use a specific mirror and install required packages
+          & $cygwinInstaller -q -s https://mirrors.kernel.org/sourceware/cygwin/ -P cmake,gcc-g++,git,make,patch,curl,m4,python3,p7zip,mingw64-x86_64-gcc-g++,mingw64-x86_64-gcc-fortran
+          
+          # Add Cygwin to PATH for this session
+          $env:PATH = "C:\cygwin64\bin;$env:PATH"
 
       - name: Build Julia using Cygwin
-        shell: C:\cygwin64\bin\bash.exe --login -eo pipefail -c "{0}"
+        shell: bash
         run: |
           echo "Creating /c/julia directory"
           mkdir -p /c/julia
