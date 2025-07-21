@@ -10,7 +10,7 @@ jobs:
     steps:
       - name: Set up MSYS2 root dir
         run: |
-          mkdir C:\msys64
+          if not exist C:\msys64 mkdir C:\msys64
         shell: cmd
 
       - name: Download pinned MSYS2 snapshot
