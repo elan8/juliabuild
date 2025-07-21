@@ -9,6 +9,13 @@ jobs:
 
     steps:
 
+      - name: Clean up existing MSYS2 installation
+        run: |
+          if (Test-Path "C:\msys64") {
+            Remove-Item -Recurse -Force "C:\msys64"
+          }
+        shell: powershell
+
       - name: Download and install MSYS2
         run: |
           $MSYS2_VERSION = "20240507"
