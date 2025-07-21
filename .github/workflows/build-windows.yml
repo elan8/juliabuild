@@ -32,8 +32,8 @@ jobs:
       - name: Downgrade GCC and CRT to compatible versions
         shell: msys2 {0}
         run: |
-          curl -LO https://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-crt-10.0.0-1-any.pkg.tar.zst
-          curl -LO https://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-gcc-12.2.0-3-any.pkg.tar.zst
+          curl -LO https://mirror.msys2.org/mingw/mingw64/mingw-w64-x86_64-crt-10.0.0-1-any.pkg.tar.zst
+          curl -LO https://mirror.msys2.org/mingw/mingw64/mingw-w64-x86_64-gcc-12.2.0-3-any.pkg.tar.zst
           pacman -U --noconfirm mingw-w64-x86_64-crt-10.0.0-1-any.pkg.tar.zst mingw-w64-x86_64-gcc-12.2.0-3-any.pkg.tar.zst
 
 
