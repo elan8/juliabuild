@@ -8,65 +8,29 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Set up MSYS2
-        uses: msys2/setup-msys2@v2
-        with:
-          update: true
-          install: >-
-            base-devel
-            diffutils 
-            git 
-            m4 
-            make 
-            patch 
-            tar 
-            p7zip 
-            curl 
-            python
-            wget
-            cmake
-            mingw-w64-x86_64-gcc 
-
-
-      - name: Build Julia with BinaryBuilder toolchain
-        shell: msys2 {0}
+      - name: Install Cygwin and required packages
+        shell: powershell
         run: |
-          echo "Testing Python execution:"
-          python -c 'import platform; print(platform.system())'
+          $cygwinUrl = "https://cygwin.com/setup-x86_64.exe"
+          $cygwinInstaller = "$env:TEMP\setup-x86_64.exe"
+          Invoke-WebRequest -Uri $cygwinUrl -OutFile $cygwinInstaller
+          & $cygwinInstaller -q -P cmake,gcc-g++,git,make,patch,curl,m4,python3,p7zip,mingw64-x86_64-gcc-g++,mingw64-x86_64-gcc-fortran
 
-          echo "Cloning Julia repository:"
+      - name: Build Julia using Cygwin
+        shell: C:\cygwin64\bin\bash.exe --login -eo pipefail -c "{0}"
+        run: |
+          echo "Creating /c/julia directory"
           mkdir -p /c/julia
           cd /c/julia
-          git config --global core.eol lf
-          git config --global core.autocrlf input
-          git clone --depth 1 --branch v1.11.6 https://github.com/JuliaLang/julia.git src
-          cd src
 
-          echo "Creating Make.user with proper compiler settings..."
-          cat > Make.user << EOF
-          # Build without GPL libraries
-          USE_GPL_LIBS=0
+          echo "Cloning Julia repository:"
+          git clone https://github.com/JuliaLang/julia.git
+          cd julia
 
-          # Use BinaryBuilder for dependencies (recommended for Windows)
-          USE_BINARYBUILDER=1
-
-          # Use GNU C11 standard (same as official Julia build)
-          JCFLAGS += -std=gnu11
-          JCXXFLAGS += -std=gnu++17
-
-          # Prioritize BinaryBuilder headers over MSYS2 stdlib
-          JCFLAGS += -I$(JULIAHOME)/deps/usr/include
-          JCXXFLAGS += -I$(JULIAHOME)/deps/usr/include
-          
-          # Exclude MSYS2 system headers that conflict with BinaryBuilder
-          JCFLAGS += -nostdinc
-          JCXXFLAGS += -nostdinc
-          JCFLAGS += -isystem $(JULIAHOME)/deps/usr/include
-          JCXXFLAGS += -isystem $(JULIAHOME)/deps/usr/include
-          EOF
-
-          echo "Make.user contents:"
-          cat Make.user
+          echo "Creating Make.user for cross-compiling..."
+          echo 'XC_HOST = x86_64-w64-mingw32' > Make.user
 
           echo "Starting build in: $(pwd)"
-          make
+          make -j4
+
+          echo "Build complete. Julia executable should be at usr/bin/julia.exe"
