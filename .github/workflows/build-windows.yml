@@ -28,20 +28,25 @@ jobs:
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-toolchain
 
+      - name: Prepare build directory
+        shell: msys2 {0}
+        run: |
+          mkdir -p /c/julia-build
+          cp -r julia /c/julia-build/
+          cd /c/julia-build/julia
+          echo "Now in: $(pwd)"
+
       - name: Build Julia
         shell: msys2 {0}
         env:
           MSYSTEM: MINGW64
           PATH: /mingw64/bin:/usr/bin:/bin
         run: |
-          echo "Cloning Julia repository:"
-          git clone https://github.com/JuliaLang/julia.git
+          cd /c/julia-build
+          git clone https://github.com/JuliaLang/julia.git julia
           cd julia
-
-
           echo "Starting build in: $(pwd)"
-          which make
+          which mingw32-make
           which gcc
-          make -j$(nproc) || mingw32-make -j$(nproc)
-
+          mingw32-make -j$(nproc)
           echo "Build complete. Julia executable should be at usr/bin/julia.exe"
