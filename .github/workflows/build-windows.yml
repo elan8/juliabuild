@@ -47,5 +47,5 @@ jobs:
           git clone https://github.com/JuliaLang/julia.git
           cd julia
           git checkout v1.11.6
-          C:\msys64\usr\bin\bash -lc "make -j$(nproc)"
+          C:\msys64\usr\bin\bash -lc "cd $PWD/julia && make -j$(nproc)"
         shell: cmd
