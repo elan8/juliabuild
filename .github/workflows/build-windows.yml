@@ -1,77 +1,44 @@
-name: Build Julia on Windows with Pinned MSYS2
+name: Build Windows 
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-julia:
+  build-windows:
     runs-on: windows-latest
 
     steps:
-
-      - name: Clean up existing MSYS2 installation
-        run: |
-          if (Test-Path "C:\msys64") {
-            Remove-Item -Recurse -Force "C:\msys64"
-          }
-        shell: powershell
-
-      - name: Download and install MSYS2
-        run: |
-          $MSYS2_VERSION = "20240507"
-          $MSYS2_DOWNLOAD_URL = "https://repo.msys2.org/distrib/x86_64/msys2-base-x86_64-$MSYS2_VERSION.sfx.exe"
-          Invoke-WebRequest -Uri $MSYS2_DOWNLOAD_URL -OutFile C:/windows/temp/msys2-base.sfx.exe
-          C:\windows\temp\msys2-base.sfx.exe x -o"C:"
-        shell: powershell
-
-      - name: Verify MSYS2 installation
-        run: |
-          echo "Contents of C:\msys64:"
-          dir C:\msys64
-          echo "Contents of C:\msys64\usr\bin:"
-          dir C:\msys64\usr\bin
-        shell: cmd
-
-      - name: Update package database (optional, not full update!)
-        run: |
-          C:\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm"
-        shell: cmd
-
-      - name: Install build dependencies
-        run: |
-          C:\msys64\usr\bin\bash -lc "pacman -S --noconfirm base-devel git mingw-w64-x86_64-toolchain make cmake m4 perl python3 patch mingw-w64-x86_64-gcc mingw-w64-x86_64-gcc-fortran mingw-w64-x86_64-gcc-libs diffutils tar unzip pkgconf"
-        shell: cmd
-
-      - name: Create MSYS2 shell wrapper
-        run: |
-          @echo off
-          echo Creating MSYS2 shell wrapper...
-          
-          REM Create the wrapper script
-          echo @echo off > C:\msys2-shell.bat
-          echo set MSYSTEM=MINGW64 >> C:\msys2-shell.bat
-          echo set PATH=C:\msys64\mingw64\bin;C:\msys64\usr\bin;%%PATH%% >> C:\msys2-shell.bat
-          echo set CC=x86_64-w64-mingw32-gcc >> C:\msys2-shell.bat
-          echo set CXX=x86_64-w64-mingw32-g++ >> C:\msys2-shell.bat
-          echo set CXXFLAGS=-std=c++17 >> C:\msys2-shell.bat
-          echo set CFLAGS=-std=c++17 >> C:\msys2-shell.bat
-          echo set USE_GPL_LIBS=0 >> C:\msys2-shell.bat
-          echo set MSYS2_ARG_CONV_EXCL=* >> C:\msys2-shell.bat
-          echo C:\msys64\usr\bin\bash.exe -l %%* >> C:\msys2-shell.bat
-          
-          echo MSYS2 shell wrapper created at C:\msys2-shell.bat
-        shell: cmd
+      - name: Set up MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >-
+            base-devel
+            diffutils 
+            git 
+            m4 
+            make 
+            patch 
+            tar 
+            p7zip 
+            curl 
+            python
+            wget
+            cmake
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-toolchain
 
       - name: Build Julia
-        shell: C:\msys2-shell.bat
+        shell: msys2 {0}
+        env:
+          MSYSTEM: MINGW64
         run: |
           echo "Cloning Julia repository:"
           git clone https://github.com/JuliaLang/julia.git
           cd julia
-          git checkout v1.11.6
           echo "Starting build in: $(pwd)"
           make -j$(nproc)
-
+          echo "Build complete. Julia executable should be at usr/bin/julia.exe"
 
       - name: Upload Julia build as artifact
         uses: actions/upload-artifact@v4
