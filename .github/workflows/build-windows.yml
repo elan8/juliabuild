@@ -8,6 +8,8 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      - name: Set up MSYS2
+        uses: msys2/setup-msys2@v2
 
       - name: Clean up existing MSYS2 installation
         run: |
@@ -50,6 +52,7 @@ jobs:
           echo "Cloning Julia repository:"
           git clone https://github.com/JuliaLang/julia.git
           cd julia
+          git checkout v1.11.6
           echo "Starting build in: $(pwd)"
           make -j$(nproc)
 
