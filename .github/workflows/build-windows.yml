@@ -39,6 +39,13 @@ jobs:
           git clone https://github.com/JuliaLang/julia.git
           cd julia
           git checkout v1.11.6
+          
+          echo "Patching pkgimage.mk to skip SparseArrays precompilation when USE_GPL_LIBS=0:"
+          # Create a backup
+          cp pkgimage.mk pkgimage.mk.backup
+          # Replace the precompilation line with conditional logic
+          sed -i 's/Base.Precompilation.precompilepkgs(configs=\[``=>Base.CacheFlags(debug_level=2, opt_level=3), ``=>Base.CacheFlags(check_bounds=1, debug_level=2, opt_level=3)\])/Base.Precompilation.precompilepkgs(configs=[``=>Base.CacheFlags(debug_level=2, opt_level=3), ``=>Base.CacheFlags(check_bounds=1, debug_level=2, opt_level=3)], skip=[``SparseArrays``])/g' pkgimage.mk
+          
           echo "Starting GPL free Julia build in: $(pwd)"
           make -j$(nproc)
           echo "Build complete. Julia executable should be at usr/bin/julia.exe"
