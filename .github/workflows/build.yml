@@ -1,0 +1,79 @@
+name: Build Julia and Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      julia_version:
+        description: 'Julia version to build (e.g., v1.11.6)'
+        required: true
+        default: 'v1.11.6'
+
+jobs:
+  build-julia:
+    runs-on: windows-latest
+
+    steps:
+      - name: Setup MSYS2 for Julia build
+        uses: elan8/setup-msys2-julia@v0.0.2
+        with:
+          update: false
+          install: >-
+            base-devel
+            diffutils
+            git
+            m4
+            make
+            patch
+            tar
+            p7zip
+            curl
+            python
+            wget
+            cmake
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-toolchain
+
+      - name: Build Julia
+        shell: msys2 {0}
+        env:
+          MSYSTEM: MINGW64
+          USE_GPL_LIBS: 0
+        run: |
+          echo "Cloning Julia repository:"
+          git clone https://github.com/JuliaLang/julia.git
+          cd julia
+          git checkout ${{ github.event.inputs.julia_version }}
+          echo "Starting build in: $(pwd)"
+          make -j$(nproc)
+          echo "Build complete. Julia executable should be at usr/bin/julia.exe"
+
+      - name: Upload Julia build as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: julia-windows-x86_64
+          path: julia/
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.inputs.julia_version }}
+          release_name: Julia ${{ github.event.inputs.julia_version }}
+          draft: false
+          prerelease: false
+
+      - name: Compress Julia build folder
+        run: |
+          powershell -Command "Compress-Archive -Path julia/* -DestinationPath julia-windows-x86_64.zip"
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./julia-windows-x86_64.zip
+          asset_name: julia-${{ github.event.inputs.julia_version }}-windows-x86_64.zip
+          asset_content_type: application/zip 
