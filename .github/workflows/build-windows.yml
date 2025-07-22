@@ -48,5 +48,12 @@ jobs:
           cd julia
           git checkout v1.11.6
           pwd
-          C:\msys64\usr\bin\bash -lc "cd /d/a/juliabuild/juliabuild/julia && make -j$(nproc)"
+          C:\msys64\usr\bin\bash -lc "export MSYSTEM=MINGW64 && export USE_GPL_LIBS=0 && cd /d/a/juliabuild/juliabuild/julia && make -j$(nproc)"
         shell: cmd
+
+      - name: Upload Julia executable as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: julia-windows-x86_64
+          path: julia/usr/bin/julia.exe
+          retention-days: 30
