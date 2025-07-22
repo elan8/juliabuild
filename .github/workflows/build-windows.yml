@@ -40,11 +40,20 @@ jobs:
           cd julia
           git checkout v1.11.6
           
-          echo "Patching pkgimage.mk to skip SparseArrays precompilation when USE_GPL_LIBS=0:"
-          # Create a backup
-          cp pkgimage.mk pkgimage.mk.backup
-          # Replace the precompilation line with conditional logic
-          sed -i 's/Base.Precompilation.precompilepkgs(configs=\[``=>Base.CacheFlags(debug_level=2, opt_level=3), ``=>Base.CacheFlags(check_bounds=1, debug_level=2, opt_level=3)\])/Base.Precompilation.precompilepkgs(configs=[``=>Base.CacheFlags(debug_level=2, opt_level=3), ``=>Base.CacheFlags(check_bounds=1, debug_level=2, opt_level=3)], skip=[``SparseArrays``])/g' pkgimage.mk
+          echo "Removing SparseArrays completely for GPL-free build:"
+          # Remove SparseArrays from the INDEPENDENT_STDLIBS list in stdlib.mk
+          sed -i 's/SparseArrays //g' stdlib/stdlib.mk
+          
+          # Remove SparseArrays from stdlib/Project.toml
+          sed -i '/SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"/d' stdlib/Project.toml
+          
+          # Remove SparseArrays from Random's test dependencies
+          sed -i 's/SparseArrays, //g' stdlib/Random/Project.toml
+          sed -i 's/, SparseArrays//g' stdlib/Random/Project.toml
+          
+          # Remove SparseArrays from Future's test dependencies  
+          sed -i 's/SparseArrays, //g' stdlib/Future/Project.toml
+          sed -i 's/, SparseArrays//g' stdlib/Future/Project.toml
           
           echo "Starting GPL free Julia build in: $(pwd)"
           make -j$(nproc)
