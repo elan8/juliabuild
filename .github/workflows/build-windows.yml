@@ -42,14 +42,17 @@ jobs:
           C:\msys64\usr\bin\bash -lc "pacman -S --noconfirm base-devel git mingw-w64-x86_64-toolchain make cmake m4 perl python3 patch mingw-w64-x86_64-gcc mingw-w64-x86_64-gcc-fortran mingw-w64-x86_64-gcc-libs diffutils tar unzip pkgconf"
         shell: cmd
 
-      - name: Clone and Build Julia
+      - name: Build Julia
+        shell: msys2 {0}
+        env:
+          MSYSTEM: MINGW64
         run: |
+          echo "Cloning Julia repository:"
           git clone https://github.com/JuliaLang/julia.git
           cd julia
-          git checkout v1.11.6
-          pwd
-          C:\msys64\usr\bin\bash -lc "export MSYSTEM=MINGW64 && export USE_GPL_LIBS=0 && export PATH=/mingw64/bin:/usr/bin && export CC=x86_64-w64-mingw32-gcc && export CXX=x86_64-w64-mingw32-g++ && cd /d/a/juliabuild/juliabuild/julia && make CXXFLAGS='-std=c++17' CFLAGS='-std=c++17' -j$(nproc)"
-        shell: cmd
+          echo "Starting build in: $(pwd)"
+          make -j$(nproc)
+
 
       - name: Upload Julia build as artifact
         uses: actions/upload-artifact@v4
