@@ -48,7 +48,7 @@ jobs:
           cd julia
           git checkout v1.11.6
           pwd
-          C:\msys64\usr\bin\bash -lc "export MSYSTEM=MINGW64 && export USE_GPL_LIBS=0 && export PATH=/mingw64/bin:/usr/bin && cd /d/a/juliabuild/juliabuild/julia && make -j$(nproc)"
+          C:\msys64\usr\bin\bash -lc "export MSYSTEM=MINGW64 && export USE_GPL_LIBS=0 && export PATH=/mingw64/bin:/usr/bin && export CXXFLAGS='-std=c++17' && export CFLAGS='-std=c++17' && cd /d/a/juliabuild/juliabuild/julia && make -j$(nproc)"
         shell: cmd
 
       - name: Upload Julia build as artifact
