@@ -9,7 +9,7 @@ jobs:
 
     steps:
       - name: Setup MSYS2 for Julia build
-        uses: elan8/setup-msys2-julia@v0.0.1
+        uses: elan8/setup-msys2-julia@v0.0.2
         with:
           update: false
           install: >-
