@@ -33,6 +33,7 @@ jobs:
         env:
           MSYSTEM: MINGW64
           USE_GPL_LIBS: 0
+          USE_BINARYBUILDER: 1
         run: |
           echo "Cloning Julia repository:"
           git clone https://github.com/JuliaLang/julia.git
