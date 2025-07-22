@@ -39,7 +39,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          C:\msys64\usr\bin\bash -lc "pacman -S --noconfirm base-devel git mingw-w64-x86_64-toolchain make cmake m4 perl python3 patch mingw-w64-x86_64-gcc diffutils tar unzip pkgconf"
+          C:\msys64\usr\bin\bash -lc "pacman -S --noconfirm base-devel git mingw-w64-x86_64-toolchain make cmake m4 perl python3 patch mingw-w64-x86_64-gcc mingw-w64-x86_64-gcc-fortran mingw-w64-x86_64-gcc-libs diffutils tar unzip pkgconf"
         shell: cmd
 
       - name: Clone and Build Julia
@@ -48,7 +48,7 @@ jobs:
           cd julia
           git checkout v1.11.6
           pwd
-          C:\msys64\usr\bin\bash -lc "export MSYSTEM=MINGW64 && export USE_GPL_LIBS=0 && cd /d/a/juliabuild/juliabuild/julia && make -j$(nproc)"
+          C:\msys64\usr\bin\bash -lc "export MSYSTEM=MINGW64 && export USE_GPL_LIBS=0 && export PATH=/mingw64/bin:/usr/bin && cd /d/a/juliabuild/juliabuild/julia && make -j$(nproc)"
         shell: cmd
 
       - name: Upload Julia build as artifact
