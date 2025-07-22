@@ -1,0 +1,45 @@
+name: Build Linux
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            git \
+            m4 \
+            make \
+            patch \
+            tar \
+            p7zip-full \
+            curl \
+            python3 \
+            wget \
+            cmake \
+            gcc \
+            g++
+
+      - name: Build Julia
+        env:
+          USE_GPL_LIBS: 0
+        run: |
+          echo "Cloning Julia repository:"
+          git clone https://github.com/JuliaLang/julia.git
+          cd julia
+          git checkout v1.11.6
+          echo "Starting GPL free Julia build in: $(pwd)"
+          make -j$(nproc)
+          echo "Build complete. Julia executable should be at usr/bin/julia"
+
+      - name: Upload Julia build as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: julia-linux-x86_64
+          path: julia/ 
