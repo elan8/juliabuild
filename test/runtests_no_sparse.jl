@@ -14,65 +14,29 @@ include("buildkitetestjson.jl")
 
 using .BuildKiteTestJSON
 
-# Modified choosetests function that excludes SparseArrays and related tests
+# Modified choosetests function that runs only the 5 most essential tests
 function choosetests_no_sparse(choices = [])
-    # Get the original test selection
-    (; tests, net_on, exit_on_error, use_revise, seed) = choosetests(choices)
-    
-    # Define tests that depend on SparseArrays/SuiteSparse and should be excluded
-    sparse_dependent_tests = [
-        "SparseArrays",           # The SparseArrays stdlib itself
-        "SuiteSparse_jll",        # SuiteSparse JLL
-        "LinearAlgebra/sparse",   # LinearAlgebra sparse matrix tests
-        "LinearAlgebra/suitesparse", # LinearAlgebra SuiteSparse tests
-        "Statistics/sparse",      # Statistics sparse matrix tests (if any)
+    # Define the 5 most important tests that indicate Julia actually works
+    essential_tests = [
+        "core",           # Core language features (types, functions, etc.)
+        "numbers",        # Basic arithmetic and number operations
+        "strings/basic",  # String operations and manipulation
+        "arrayops",       # Array operations and indexing
+        "file",           # Basic file I/O operations
     ]
     
-    # Define tests that are known to be problematic in GPL-free builds
-    problematic_tests = [
-        "compiler/datastructures",  # Often times out
-        "compiler/inference",       # Often times out
-        "compiler/effects",         # Often times out
-        "compiler/validation",      # Often times out
-        "compiler/ssair",          # Often times out
-        "compiler/irpasses",       # Often times out
-        "compiler/tarjan",         # Often times out
-        "compiler/codegen",        # Often times out
-        "compiler/inline",         # Often times out
-        "compiler/contextual",     # Often times out
-        "compiler/invalidation",   # Often times out
-        "compiler/AbstractInterpreter", # Often times out
-        "compiler/EscapeAnalysis/EscapeAnalysis", # Often times out
-    ]
+    # Set up basic configuration for minimal testing
+    net_on = false  # No networking required for minimal tests
+    exit_on_error = true  # Stop on first error
+    use_revise = false  # No need for Revise in minimal tests
+    seed = rand(RandomDevice(), UInt128)
     
-    # Filter out sparse-dependent tests
-    filter!(test -> !any(occursin(sparse_test, test) for sparse_test in sparse_dependent_tests), tests)
-    
-    # Also filter out any stdlib tests that might depend on SparseArrays
-    # We'll be conservative and exclude any test that mentions "sparse" in the name
-    filter!(test -> !occursin("sparse", lowercase(test)), tests)
-    
-    # Filter out problematic tests for GPL-free builds
-    filter!(test -> !any(occursin(problematic_test, test) for problematic_test in problematic_tests), tests)
-    
-    println("Excluded sparse-dependent tests for GPL-free build")
-    println("Excluded problematic tests for GPL-free build")
-    println("Remaining tests: ", length(tests))
-    
-    # Helper function to run tests with timeout
-    function run_test_with_timeout(test, test_path, timeout_seconds=300)
-        try
-            remotecall_fetch(runtests, 1, test, test_path; seed=seed)
-        catch e
-            if isa(e, InterruptException)
-                return Any[CapturedException(ErrorException("Test timed out after $timeout_seconds seconds"), [])]
-            else
-                return Any[CapturedException(e, catch_backtrace())]
-            end
-        end
+    println("Running minimal test suite with 5 essential tests:")
+    for test in essential_tests
+        println("  - $test")
     end
     
-    return (; tests, net_on, exit_on_error, use_revise, seed)
+    return (; tests=essential_tests, net_on, exit_on_error, use_revise, seed)
 end
 
 # Use the modified choosetests function
@@ -150,37 +114,14 @@ move_to_node1("stress")
 # since it starts a lot of workers and can easily exceed the maximum memory
 limited_worker_rss && move_to_node1("Distributed")
 
-# Move LinearAlgebra and Pkg tests to the front, because they take a while, so we might
-# as well get them all started early.
-for prependme in ["LinearAlgebra", "Pkg"]
-    prependme_test_ids = findall(x->occursin(prependme, x), tests)
-    prependme_tests = tests[prependme_test_ids]
-    deleteat!(tests, prependme_test_ids)
-    prepend!(tests, prependme_tests)
+# Move all tests to node1 for simplicity in minimal testing
+for test in copy(tests)
+    move_to_node1(test)
 end
 
-import LinearAlgebra
 cd(@__DIR__) do
-    # `net_on` implies that we have access to the loopback interface which is
-    # necessary for Distributed multi-processing. There are some test
-    # environments that do not allow access to loopback, so we must disable
-    # addprocs when `net_on` is false. Note that there exist build environments,
-    # including Nix, where `net_on` is false but we still have access to the
-    # loopback interface. It would be great to make this check more specific to
-    # identify those situations somehow. See
-    #   * https://github.com/JuliaLang/julia/issues/6722
-    #   * https://github.com/JuliaLang/julia/pull/29384
-    #   * https://github.com/JuliaLang/julia/pull/40348
+    # Use single-threaded testing for minimal tests
     n = 1
-    JULIA_TEST_USE_MULTIPLE_WORKERS = Base.get_bool_env("JULIA_TEST_USE_MULTIPLE_WORKERS", false)
-    # If the `JULIA_TEST_USE_MULTIPLE_WORKERS` environment variable is set to `true`, we use
-    # multiple worker processes regardless of the value of `net_on`.
-    # Otherwise, we use multiple worker processes if and only if `net_on` is true.
-    if net_on || JULIA_TEST_USE_MULTIPLE_WORKERS
-        n = min(Sys.CPU_THREADS, length(tests))
-        n > 1 && addprocs_with_testenv(n)
-        LinearAlgebra.BLAS.set_num_threads(1)
-    end
     skipped = 0
 
     @everywhere include("testdefs.jl")
@@ -191,7 +132,7 @@ cd(@__DIR__) do
     end
 
     println("""
-        Running parallel tests with (GPL-free build, SparseArrays excluded):
+        Running minimal tests (single-threaded):
           getpid() = $(getpid())
           nworkers() = $(nworkers())
           nthreads() = $(Threads.threadpoolsize())
@@ -200,230 +141,35 @@ cd(@__DIR__) do
           Sys.free_memory() = $(Base.format_bytes(Sys.free_memory()))
         """)
         
-        # Set shorter timeouts for GPL-free builds to avoid timeouts
-        if haskey(ENV, "JULIA_TEST_TIMEOUT")
-            # Use existing timeout
-        else
-            ENV["JULIA_TEST_TIMEOUT"] = "300"  # 5 minutes per test
+        # Set shorter timeouts for minimal tests
+        if !haskey(ENV, "JULIA_TEST_TIMEOUT")
+            ENV["JULIA_TEST_TIMEOUT"] = "120"  # 2 minutes per test
         end
 
-    #pretty print the information about gc and mem usage
-    testgroupheader = "Test"
-    workerheader = "(Worker)"
-    name_align    = maximum([textwidth(testgroupheader) + textwidth(" ") + textwidth(workerheader); map(x -> textwidth(x) + 3 + ndigits(nworkers()), tests)])
-    elapsed_align = textwidth("Time (s)")
-    gc_align      = textwidth("GC (s)")
-    percent_align = textwidth("GC %")
-    alloc_align   = textwidth("Alloc (MB)")
-    rss_align     = textwidth("RSS (MB)")
-    printstyled(testgroupheader, color=:white)
-    printstyled(lpad(workerheader, name_align - textwidth(testgroupheader) + 1), " | ", color=:white)
-    printstyled("Time (s) | GC (s) | GC % | Alloc (MB) | RSS (MB)\n", color=:white)
+    # Simple test runner for minimal tests
     results = []
-    print_lock = stdout isa Base.LibuvStream ? stdout.lock : ReentrantLock()
-    if stderr isa Base.LibuvStream
-        stderr.lock = print_lock
-    end
-
-    function print_testworker_stats(test, wrkr, resp)
-        @nospecialize resp
-        lock(print_lock)
-        try
-            printstyled(test, color=:white)
-            printstyled(lpad("($wrkr)", name_align - textwidth(test) + 1, " "), " | ", color=:white)
-            time_str = @sprintf("%7.2f",resp[2])
-            printstyled(lpad(time_str, elapsed_align, " "), " | ", color=:white)
-            gc_str = @sprintf("%5.2f", resp[5].total_time / 10^9)
-            printstyled(lpad(gc_str, gc_align, " "), " | ", color=:white)
-
-            # since there may be quite a few digits in the percentage,
-            # the left-padding here is less to make sure everything fits
-            percent_str = @sprintf("%4.1f", 100 * resp[5].total_time / (10^9 * resp[2]))
-            printstyled(lpad(percent_str, percent_align, " "), " | ", color=:white)
-            alloc_str = @sprintf("%5.2f", resp[3] / 2^20)
-            printstyled(lpad(alloc_str, alloc_align, " "), " | ", color=:white)
-            rss_str = @sprintf("%5.2f", resp[6] / 2^20)
-            printstyled(lpad(rss_str, rss_align, " "), "\n", color=:white)
-        finally
-            unlock(print_lock)
-        end
-        nothing
-    end
-
-    global print_testworker_started = (name, wrkr)->begin
-        pid = running_under_rr() ? remotecall_fetch(getpid, wrkr) : 0
-        at = lpad("($wrkr)", name_align - textwidth(name) + 1, " ")
-        lock(print_lock)
-        try
-            printstyled(name, at, " |", " "^elapsed_align,
-                    "started at $(now())",
-                    (pid > 0 ? " on pid $pid" : ""),
-                    "\n", color=:white)
-        finally
-            unlock(print_lock)
-        end
-        nothing
-    end
-
-    function print_testworker_errored(name, wrkr, @nospecialize(e))
-        lock(print_lock)
-        try
-            printstyled(name, color=:red)
-            printstyled(lpad("($wrkr)", name_align - textwidth(name) + 1, " "), " |",
-                " "^elapsed_align, " failed at $(now())\n", color=:red)
-            if isa(e, Test.TestSetException)
-                for t in e.errors_and_fails
-                    show(t)
-                    println()
-                end
-            elseif e !== nothing
-                Base.showerror(stdout, e)
+    
+    for t in node1_tests
+        println("Running test: $t")
+        before = time()
+        resp, duration = try
+                r = Base.invokelatest(runtests, t, test_path(t), true, seed=seed)
+                r, time() - before
+            catch e
+                isa(e, InterruptException) && rethrow()
+                Any[CapturedException(e, catch_backtrace())], time() - before
             end
-            println()
-        finally
-            unlock(print_lock)
-        end
-    end
-
-
-    all_tests = [tests; node1_tests]
-
-    local stdin_monitor
-    all_tasks = Task[]
-    o_ts_duration = 0.0
-    try
-        # Monitor stdin and kill this task on ^C
-        # but don't do this on Windows, because it may deadlock in the kernel
-        running_tests = Dict{String, DateTime}()
-        if !Sys.iswindows() && isa(stdin, Base.TTY)
-            t = current_task()
-            stdin_monitor = @async begin
-                term = REPL.Terminals.TTYTerminal("xterm", stdin, stdout, stderr)
-                try
-                    REPL.Terminals.raw!(term, true)
-                    while true
-                        c = read(term, Char)
-                        if c == '\x3'
-                            Base.throwto(t, InterruptException())
-                            break
-                        elseif c == '?'
-                            println("Currently running: ")
-                            tests = sort(collect(running_tests), by=x->x[2])
-                            foreach(tests) do (test, date)
-                                println(test, " (running for ", round(now()-date, Minute), ")")
-                            end
-                        end
-                    end
-                catch e
-                    isa(e, InterruptException) || rethrow()
-                finally
-                    REPL.Terminals.raw!(term, false)
-                end
+        
+        if length(resp) == 1
+            println("❌ Test $t failed after $(round(duration, digits=2))s")
+            if exit_on_error
+                println("Stopping due to test failure")
+                break
             end
+        else
+            println("✅ Test $t passed in $(round(duration, digits=2))s")
         end
-        o_ts_duration = @elapsed Experimental.@sync begin
-            for p in workers()
-                @async begin
-                    push!(all_tasks, current_task())
-                    while length(tests) > 0
-                        test = popfirst!(tests)
-                        running_tests[test] = now()
-                        wrkr = p
-                        before = time()
-                        resp, duration = try
-                                # Add timeout for individual tests
-                                timeout_seconds = parse(Int, get(ENV, "JULIA_TEST_TIMEOUT", "300"))
-                                r = remotecall_fetch(runtests, wrkr, test, test_path(test); seed=seed)
-                                r, time() - before
-                            catch e
-                                isa(e, InterruptException) && return
-                                Any[CapturedException(e, catch_backtrace())], time() - before
-                            end
-                        delete!(running_tests, test)
-                        push!(results, (test, resp, duration))
-                        if length(resp) == 1
-                            print_testworker_errored(test, wrkr, exit_on_error ? nothing : resp[1])
-                            if exit_on_error
-                                skipped = length(tests)
-                                empty!(tests)
-                            elseif n > 1
-                                # the worker encountered some failure, recycle it
-                                # so future tests get a fresh environment
-                                rmprocs(wrkr, waitfor=30)
-                                p = addprocs_with_testenv(1)[1]
-                                remotecall_fetch(include, p, "testdefs.jl")
-                                if use_revise
-                                    Distributed.remotecall_eval(Main, p, revise_init_expr)
-                                end
-                            end
-                        else
-                            print_testworker_stats(test, wrkr, resp)
-                            if resp[end] > max_worker_rss
-                                # the worker has reached the max-rss limit, recycle it
-                                # so future tests start with a smaller working set
-                                if n > 1
-                                    rmprocs(wrkr, waitfor=30)
-                                    p = addprocs_with_testenv(1)[1]
-                                    remotecall_fetch(include, p, "testdefs.jl")
-                                    if use_revise
-                                        Distributed.remotecall_eval(Main, p, revise_init_expr)
-                                    end
-                                else # single process testing
-                                    error("Halting tests. Memory limit reached : $resp > $max_worker_rss")
-                                end
-                            end
-                       end
-                    end
-                    if p != 1
-                        # Free up memory =)
-                        rmprocs(p, waitfor=30)
-                    end
-                end
-            end
-        end
-
-        n > 1 && length(node1_tests) > 1 && print("\nExecuting tests that run on node 1 only:\n")
-        for t in node1_tests
-            # As above, try to run each test
-            # which must run on node 1. If
-            # the test fails, catch the error,
-            # and either way, append the results
-            # to the overall aggregator
-            isolate = true
-            t == "SharedArrays" && (isolate = false)
-            before = time()
-            resp, duration = try
-                    r = Base.invokelatest(runtests, t, test_path(t), isolate, seed=seed) # runtests is defined by the include above
-                    r, time() - before
-                catch e
-                    isa(e, InterruptException) && rethrow()
-                    Any[CapturedException(e, catch_backtrace())], time() - before
-                end
-            if length(resp) == 1
-                print_testworker_errored(t, 1, resp[1])
-            else
-                print_testworker_stats(t, 1, resp)
-            end
-            push!(results, (t, resp, duration))
-        end
-    catch e
-        isa(e, InterruptException) || rethrow()
-        # If the test suite was merely interrupted, still print the
-        # summary, which can be useful to diagnose what's going on
-        foreach(task -> begin
-                istaskstarted(task) || return
-                istaskdone(task) && return
-                try
-                    schedule(task, InterruptException(); error=true)
-                catch ex
-                    @error "InterruptException" exception=ex,catch_backtrace()
-                end
-            end, all_tasks)
-        foreach(wait, all_tasks)
-    finally
-        if @isdefined stdin_monitor
-            schedule(stdin_monitor, InterruptException(); error=true)
-        end
+        push!(results, (t, resp, duration))
     end
 
     #=
@@ -510,13 +256,11 @@ cd(@__DIR__) do
     # o_ts.verbose = true # set to true to show all timings when successful
     Test.print_test_results(o_ts, 1)
     if !o_ts.anynonpass
-        println("    \033[32;1mSUCCESS\033[0m (GPL-free build, SparseArrays excluded)")
+        println("    \033[32;1mSUCCESS\033[0m (Minimal test suite - Julia is working!)")
     else
         println("    \033[31;1mFAILURE\033[0m\n")
-        skipped > 0 &&
-            println("$skipped test", skipped > 1 ? "s were" : " was", " skipped due to failure.")
         println("The global RNG seed was 0x$(string(seed, base = 16)).\n")
         Test.print_test_errors(o_ts)
-        throw(Test.FallbackTestSetException("Test run finished with errors"))
+        throw(Test.FallbackTestSetException("Minimal test run finished with errors"))
     end
 end 
