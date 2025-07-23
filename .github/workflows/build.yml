@@ -92,6 +92,7 @@ jobs:
 
       - name: Compress Julia build folder
         run: |
+          cd ..
           powershell -Command "Compress-Archive -Path julia/* -DestinationPath julia-windows-x86_64.zip"
 
       - name: Create GitHub Release and Upload Assets
