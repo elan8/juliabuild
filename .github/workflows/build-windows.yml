@@ -71,9 +71,6 @@ jobs:
           sed -i 's/SparseArrays, //g' doc/make.jl
           sed -i 's/using SparseArrays, LinearAlgebra/using LinearAlgebra/g' doc/make.jl
           
-          # Remove SparseArrays from contrib tools
-          sed -i '/SparseArrays = find_loaded_root_module/,/end/d' contrib/juliac/juliac-trim-stdlib.jl
-          
           echo "Starting GPL free Julia build in: $(pwd)"
           make -j$(nproc)
           echo "Build complete. Julia executable should be at usr/bin/julia.exe"
