@@ -8,6 +8,9 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      - name: Checkout juliabuild repository
+        uses: actions/checkout@v4
+
       - name: Setup MSYS2 for Julia build
         uses: elan8/setup-msys2-julia@v0.0.2
         with:
@@ -73,7 +76,14 @@ jobs:
           
           echo "Starting GPL free Julia build in: $(pwd)"
           make -j$(nproc)
-          echo "Build complete."
+          echo "Build complete. "
+          
+          echo "Copying custom test runner to Julia test directory..."
+          cp ../test/runtests_no_sparse.jl test/
+          
+          echo "Running test suite (excluding SparseArrays tests)..."
+          ./usr/bin/julia.exe test/runtests_no_sparse.jl --exit-on-error
+          echo "Test suite completed."
 
       - name: Upload Julia build as artifact
         uses: actions/upload-artifact@v4
