@@ -119,6 +119,9 @@ for test in copy(tests)
     move_to_node1(test)
 end
 
+# Define all_tests for the summary
+all_tests = [tests; node1_tests]
+
 cd(@__DIR__) do
     # Use single-threaded testing for minimal tests
     n = 1
@@ -148,6 +151,7 @@ cd(@__DIR__) do
 
     # Simple test runner for minimal tests
     results = []
+    total_duration = 0.0
     
     for t in node1_tests
         println("Running test: $t")
@@ -160,6 +164,8 @@ cd(@__DIR__) do
                 Any[CapturedException(e, catch_backtrace())], time() - before
             end
         
+        total_duration += duration
+        
         if length(resp) == 1
             println("❌ Test $t failed after $(round(duration, digits=2))s")
             if exit_on_error
@@ -169,7 +175,7 @@ cd(@__DIR__) do
         else
             println("✅ Test $t passed in $(round(duration, digits=2))s")
         end
-        push!(results, (t, resp, duration))
+        push!(results, (t, [resp], duration))
     end
 
     #=
@@ -196,7 +202,7 @@ cd(@__DIR__) do
     =#
     Test.TESTSET_PRINT_ENABLE[] = false
     o_ts = Test.DefaultTestSet("Overall")
-    o_ts.time_end = o_ts.time_start + o_ts_duration # manually populate the timing
+    o_ts.time_end = o_ts.time_start + total_duration # manually populate the timing
     Test.push_testset(o_ts)
     completed_tests = Set{String}()
     for (testname, (resp,), duration) in results
