@@ -73,7 +73,7 @@ jobs:
           
           echo "Starting GPL free Julia build in: $(pwd)"
           make -j$(nproc)
-          echo "Build complete. Julia executable should be at usr/bin/julia.exe"
+          echo "Build complete."
 
       - name: Upload Julia build as artifact
         uses: actions/upload-artifact@v4
