@@ -97,17 +97,18 @@ jobs:
       - name: Debug - List directory contents
         run: |
           echo "Current directory contents:"
-          ls -la
+          Get-ChildItem -Force
           echo ""
           echo "Julia folder contents:"
-          ls -la julia/
+          Get-ChildItem -Path julia -Force
           echo ""
           echo "Checking if zip file was created:"
-          ls -la *.zip || echo "No zip files found"
+          Get-ChildItem -Filter "*.zip" -ErrorAction SilentlyContinue
           echo ""
           echo "Checking zip file contents:"
           if (Test-Path "julia-windows-x86_64.zip") {
-            echo "Zip file exists, size: $(Get-Item julia-windows-x86_64.zip | Select-Object -ExpandProperty Length) bytes"
+            $zipFile = Get-Item "julia-windows-x86_64.zip"
+            echo "Zip file exists, size: $($zipFile.Length) bytes"
           } else {
             echo "Zip file does not exist"
           }
