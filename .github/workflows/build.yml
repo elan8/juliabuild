@@ -92,8 +92,25 @@ jobs:
 
       - name: Compress Julia build folder
         run: |
-          cd ..
           powershell -Command "Compress-Archive -Path julia/* -DestinationPath julia-windows-x86_64.zip"
+
+      - name: Debug - List directory contents
+        run: |
+          echo "Current directory contents:"
+          ls -la
+          echo ""
+          echo "Julia folder contents:"
+          ls -la julia/
+          echo ""
+          echo "Checking if zip file was created:"
+          ls -la *.zip || echo "No zip files found"
+          echo ""
+          echo "Checking zip file contents:"
+          if (Test-Path "julia-windows-x86_64.zip") {
+            echo "Zip file exists, size: $(Get-Item julia-windows-x86_64.zip | Select-Object -ExpandProperty Length) bytes"
+          } else {
+            echo "Zip file does not exist"
+          }
 
       - name: Create GitHub Release and Upload Assets
         uses: softprops/action-gh-release@v2
