@@ -34,7 +34,7 @@ This build is suitable for:
 
 ## 🗺️ Roadmap: PaStiX Integration
 
-We are actively working to replace the excluded SuiteSparse functionality with **PaStiX**, a high-performance sparse matrix library with permissive licensing.
+We are planning to replace the excluded SuiteSparse functionality with **PaStiX**, a high-performance sparse matrix library with permissive licensing. https://gitlab.inria.fr/solverstack/pastix
 
 ### Planned Features:
 - **Sparse matrix types** - Reimplement sparse matrix data structures
