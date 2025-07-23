@@ -55,6 +55,25 @@ jobs:
           sed -i 's/SparseArrays, //g' stdlib/Future/Project.toml
           sed -i 's/, SparseArrays//g' stdlib/Future/Project.toml
           
+          # Remove SparseArrays from stdlib/Manifest.toml
+          sed -i '/^\[\[deps\.SparseArrays\]\]/,/^$/d' stdlib/Manifest.toml
+          
+          # Remove SparseArrays weak dependency and extension from Statistics in Manifest.toml
+          sed -i '/weakdeps = \["SparseArrays"\]/d' stdlib/Manifest.toml
+          sed -i '/SparseArraysExt = \["SparseArrays"\]/d' stdlib/Manifest.toml
+          sed -i '/\[deps\.Statistics\.extensions\]/d' stdlib/Manifest.toml
+          
+          # Remove SparseArrays from test files
+          sed -i 's/using Test, SparseArrays/using Test/g' stdlib/Random/test/runtests.jl
+          sed -i 's/&& x != "SparseArrays" &&/&&/g' test/ambiguous.jl
+          
+          # Remove SparseArrays from documentation
+          sed -i 's/SparseArrays, //g' doc/make.jl
+          sed -i 's/using SparseArrays, LinearAlgebra/using LinearAlgebra/g' doc/make.jl
+          
+          # Remove SparseArrays from contrib tools
+          sed -i '/SparseArrays = find_loaded_root_module/,/end/d' contrib/juliac/juliac-trim-stdlib.jl
+          
           echo "Starting GPL free Julia build in: $(pwd)"
           make -j$(nproc)
           echo "Build complete. Julia executable should be at usr/bin/julia.exe"
