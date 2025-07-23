@@ -8,6 +8,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout juliabuild repository
+        uses: actions/checkout@v4
+
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -29,14 +32,54 @@ jobs:
       - name: Build Julia
         env:
           USE_GPL_LIBS: 0
+          USE_BINARYBUILDER: 1
         run: |
           echo "Cloning Julia repository:"
           git clone https://github.com/JuliaLang/julia.git
           cd julia
           git checkout v1.11.6
+          
+          echo "Removing SparseArrays completely for GPL-free build:"
+          # Remove SparseArrays from the INDEPENDENT_STDLIBS list in stdlib.mk
+          sed -i 's/SparseArrays //g' stdlib/stdlib.mk
+          
+          # Remove SparseArrays from stdlib/Project.toml
+          sed -i '/SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"/d' stdlib/Project.toml
+          
+          # Remove SparseArrays from Random's test dependencies
+          sed -i 's/SparseArrays, //g' stdlib/Random/Project.toml
+          sed -i 's/, SparseArrays//g' stdlib/Random/Project.toml
+          
+          # Remove SparseArrays from Future's test dependencies  
+          sed -i 's/SparseArrays, //g' stdlib/Future/Project.toml
+          sed -i 's/, SparseArrays//g' stdlib/Future/Project.toml
+          
+          # Remove SparseArrays from stdlib/Manifest.toml
+          sed -i '/^\[\[deps\.SparseArrays\]\]/,/^$/d' stdlib/Manifest.toml
+          
+          # Remove SparseArrays weak dependency and extension from Statistics in Manifest.toml
+          sed -i '/weakdeps = \["SparseArrays"\]/d' stdlib/Manifest.toml
+          sed -i '/SparseArraysExt = \["SparseArrays"\]/d' stdlib/Manifest.toml
+          sed -i '/\[deps\.Statistics\.extensions\]/d' stdlib/Manifest.toml
+          
+          # Remove SparseArrays from test files
+          sed -i 's/using Test, SparseArrays/using Test/g' stdlib/Random/test/runtests.jl
+          sed -i 's/&& x != "SparseArrays" &&/&&/g' test/ambiguous.jl
+          
+          # Remove SparseArrays from documentation
+          sed -i 's/SparseArrays, //g' doc/make.jl
+          sed -i 's/using SparseArrays, LinearAlgebra/using LinearAlgebra/g' doc/make.jl
+          
           echo "Starting GPL free Julia build in: $(pwd)"
           make -j$(nproc)
-          echo "Build complete. Julia executable should be at usr/bin/julia"
+          echo "Build complete. "
+          
+          echo "Copying custom test runner to Julia test directory..."
+          cp ../test/runtests_no_sparse.jl test/
+          
+          echo "Running test suite (excluding SparseArrays tests)..."
+          ./usr/bin/julia test/runtests_no_sparse.jl --exit-on-error
+          echo "Test suite completed."
 
       - name: Upload Julia build as artifact
         uses: actions/upload-artifact@v4
