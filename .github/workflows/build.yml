@@ -116,6 +116,28 @@ jobs:
             echo "Zip file does not exist"
           }
 
+      - name: Build Julia sysimage
+        shell: msys2 {0}
+        run: |
+          echo "Building Julia sysimage..."
+          echo "Current directory: $(pwd)"
+          echo "Julia executable: $(ls -la julia/usr/bin/julia.exe)"
+          echo "Script file: $(ls -la scripts/build_all_sysimages.jl)"
+          ./julia/usr/bin/julia.exe scripts/build_all_sysimages.jl
+          echo "Sysimage build complete"
+          echo "Sysimage files created:"
+          ls -la sysimages/
+
+      - name: Compress sysimage
+        shell: msys2 {0}
+        run: |
+          echo "Creating sysimage ZIP archive..."
+          echo "Checking for sysimage files:"
+          ls -la sysimages/ || echo "No sysimages directory found"
+          ls -la || echo "Root directory contents"
+          7z a -tzip julia-sysimage-windows-x86_64.zip ./sysimages/*
+          echo "Sysimage ZIP archive created successfully"
+
       - name: Create GitHub Release and Upload Assets
         uses: softprops/action-gh-release@v2
         env:
@@ -128,6 +150,12 @@ jobs:
             
             This build excludes SparseArrays and other GPL-licensed components.
             Built with USE_GPL_LIBS=0 and USE_BINARYBUILDER=1.
+            
+            ## Assets included:
+            - `julia-windows-x86_64.zip`: Complete Julia installation
+            - `julia-sysimage-windows-x86_64.zip`: Precompiled sysimage with plotting and LSP functionality
           draft: false
           prerelease: false
-          files: julia-windows-x86_64.zip 
+          files: |
+            julia-windows-x86_64.zip
+            julia-sysimage-windows-x86_64.zip 
