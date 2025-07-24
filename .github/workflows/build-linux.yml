@@ -84,6 +84,10 @@ jobs:
           echo "Running test suite (excluding SparseArrays tests)..."
           ./usr/bin/julia test/runtests_no_sparse.jl --exit-on-error
           echo "Test suite completed."
+          
+          echo "Running basic Julia functionality tests..."
+          ./usr/bin/julia ../test/basic_julia_tests.jl
+          echo "Basic tests completed."
 
       - name: Upload Julia build as artifact
         uses: actions/upload-artifact@v4
