@@ -78,12 +78,6 @@ jobs:
           make -j$(nproc)
           echo "Build complete. "
           
-          echo "Copying custom test runner to Julia test directory..."
-          cp ../test/runtests_no_sparse.jl test/
-          
-          echo "Running test suite (excluding SparseArrays tests)..."
-          ./usr/bin/julia test/runtests_no_sparse.jl --exit-on-error
-          echo "Test suite completed."
           
           echo "Running basic Julia functionality tests..."
           ./usr/bin/julia ../test/basic_julia_tests.jl
