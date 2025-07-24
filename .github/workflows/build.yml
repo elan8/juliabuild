@@ -119,14 +119,24 @@ jobs:
             echo "Zip file does not exist"
           }
 
+      - name: Setup Julia sysimage environment
+        shell: msys2 {0}
+        run: |
+          echo "Setting up Julia sysimage environment..."
+          echo "Current directory: $(pwd)"
+          echo "Julia executable: $(ls -la julia/usr/bin/julia.exe)"
+          echo "Script files: $(ls -la scripts/)"
+          ./julia/usr/bin/julia.exe scripts/setup_sysimage_env.jl
+          echo "Environment setup complete"
+
       - name: Build Julia sysimage
         shell: msys2 {0}
         run: |
           echo "Building Julia sysimage..."
           echo "Current directory: $(pwd)"
           echo "Julia executable: $(ls -la julia/usr/bin/julia.exe)"
-          echo "Script file: $(ls -la scripts/build_all_sysimages.jl)"
-          ./julia/usr/bin/julia.exe scripts/build_all_sysimages.jl
+          echo "Environment: $(ls -la sysimage_build_env/)"
+          ./julia/usr/bin/julia.exe --project=sysimage_build_env scripts/build_sysimage.jl
           echo "Sysimage build complete"
           echo "Sysimage files created:"
           ls -la sysimages/
